@@ -1,0 +1,260 @@
+.App {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
+}
+
+.section-title {
+  font-size: 32px;
+  font-weight: bold;
+  color: #333;
+  margin: 0 0 30px 0;
+  text-align: left;
+}
+
+/* Special Offers Section */
+.special-offers {
+  padding: 40px 0;
+  background: #f8f9fa;
+}
+
+.offers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 24px;
+}
+
+.offer-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.offer-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.offer-content {
+  flex: 1;
+}
+
+.offer-content h3 {
+  font-size: 20px;
+  font-weight: bold;
+  color: #333;
+  margin: 0 0 10px 0;
+  line-height: 1.3;
+}
+
+.offer-content p {
+  color: #666;
+  margin: 0 0 15px 0;
+  line-height: 1.4;
+}
+
+.offer-btn {
+  background: #ff6b35;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 25px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.offer-btn:hover {
+  background: #e55a2b;
+}
+
+.offer-image {
+  flex-shrink: 0;
+}
+
+.offer-image img {
+  width: 120px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+/* Store Map Section */
+.store-map {
+  padding: 40px 0;
+}
+
+.map-container {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.map-placeholder {
+  position: relative;
+  width: 100%;
+  height: 400px;
+}
+
+.map-placeholder img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.map-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.map-overlay p {
+  margin: 0 0 15px 0;
+  color: #666;
+  font-size: 16px;
+}
+
+.map-btn {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 25px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.map-btn:hover {
+  background: #218838;
+}
+
+/* Blog Section */
+.blog-section {
+  padding: 40px 0;
+  background: #f8f9fa;
+}
+
+.blog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+}
+
+.blog-card {
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.blog-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.blog-image {
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+}
+
+.blog-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.blog-card:hover .blog-image img {
+  transform: scale(1.05);
+}
+
+.blog-content {
+  padding: 24px;
+}
+
+.blog-content h3 {
+  font-size: 20px;
+  font-weight: bold;
+  color: #333;
+  margin: 0 0 12px 0;
+  line-height: 1.3;
+}
+
+.blog-content p {
+  color: #666;
+  margin: 0 0 20px 0;
+  line-height: 1.5;
+}
+
+.blog-btn {
+  background: none;
+  border: 2px solid #ff6b35;
+  color: #ff6b35;
+  padding: 10px 20px;
+  border-radius: 25px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.blog-btn:hover {
+  background: #ff6b35;
+  color: white;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .section-title {
+    font-size: 24px;
+    text-align: center;
+  }
+  
+  .offers-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .offer-card {
+    flex-direction: column;
+    text-align: center;
+    padding: 20px;
+  }
+  
+  .offer-image img {
+    width: 100px;
+    height: 75px;
+  }
+  
+  .map-placeholder {
+    height: 300px;
+  }
+  
+  .map-overlay {
+    padding: 20px;
+  }
+  
+  .blog-grid {
+    grid-template-columns: 1fr;
+  }
+}
