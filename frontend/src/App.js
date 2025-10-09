@@ -9,6 +9,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import News from './pages/News';
 import Checkout from './pages/Checkout';
+import Profile from './pages/Profile';
 import './App.css';
 
 function App() {
@@ -28,6 +29,7 @@ function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/news" element={<News />} />
             <Route path="/checkout" element={<Checkout />} />
+            <Route path="/profile" element={<Profile />} />
           </Routes>
         </main>
         <Footer />

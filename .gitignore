@@ -71,6 +71,10 @@ dist
 .cache/
 public
 
+# Allow public folder inside frontend
+!frontend/public/
+!frontend/public/**
+
 # Storybook build outputs
 .out
 .storybook-out

@@ -71,8 +71,10 @@ const Header = ({ onCartClick }) => {
             <div className="header-actions">
               {isAuthenticated ? (
                 <div className="header-action-btn" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <User size={24} />
-                  <span>{user?.name || user?.email}</span>
+                  <Link to="/profile" className="header-action-btn" title="Профиль" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <User size={24} />
+                    <span>{user?.name || user?.email}</span>
+                  </Link>
                   <button onClick={handleLogout} className="header-action-btn" title="Выйти" style={{ marginLeft: 8 }}>
                     <LogOut size={20} />
                   </button>

@@ -79,6 +79,14 @@ export async function register({ name, email, password }) {
   });
 }
 
+export async function getMe(token) {
+  return request('/auth/me', {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+
 // News
 export async function getNews() {
   // GET /news -> [{ id, title, content, createdAt }]

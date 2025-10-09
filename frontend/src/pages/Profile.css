@@ -1,0 +1,113 @@
+/* Profile Page Styles */
+
+.profile-page {
+  padding: 24px 0;
+  background: #f7f7f8;
+  min-height: calc(100vh - 160px);
+}
+
+.profile-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.06);
+  padding: 20px;
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 12px;
+}
+
+.profile-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #f0f2f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #333;
+}
+
+.profile-title h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.profile-title p {
+  margin: 2px 0 0 0;
+  color: #6c757d;
+  font-size: 13px;
+}
+
+.logout-btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #f44336;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.profile-error {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: #fff3f3;
+  border: 1px solid #ffcdd2;
+  color: #b71c1c;
+  border-radius: 8px;
+}
+
+.profile-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 0;
+  color: #555;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #e9ecef;
+  border-top-color: #007bff;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
+
+.profile-content {
+  padding-top: 16px;
+}
+
+.profile-row {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f1f1f1;
+}
+
+.profile-row:last-child {
+  border-bottom: none;
+}
+
+.label {
+  color: #6c757d;
+}
+
+.value {
+  color: #222;
+}
+
+.value.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}

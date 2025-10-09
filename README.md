@@ -93,60 +93,75 @@
 
 ```
 project_shop/
-├── src/
-│   ├── components/          # React компоненты
-│   │   ├── AuthForm/       # Компоненты авторизации
-│   │   ├── Cart/           # Корзина товаров
-│   │   ├── Header/         # Шапка сайта
-│   │   └── ...
-│   ├── pages/              # Страницы приложения
-│   │   ├── Login.js        # Страница входа
-│   │   ├── Register.js     # Страница регистрации
-│   │   ├── News.js         # Страница новостей
-│   │   ├── Checkout.js     # Оформление заказа
-│   │   └── Home.js         # Главная страница
-│   ├── context/            # Context API
-│   │   ├── AuthContext.js  # Контекст авторизации
-│   │   └── CartContext.js  # Контекст корзины
-│   ├── services/           # API клиенты
-│   │   └── api.js          # HTTP запросы к серверу
-│   ├── hooks/              # Пользовательские хуки
-│   │   └── useFormValidation.js
-│   └── utils/              # Утилиты
-│       └── priceUtils.js   # Работа с ценами
+├── frontend/
+│   ├── public/
+│   │   └── index.html
+│   └── src/
+│       ├── components/          # React компоненты
+│       │   ├── AuthForm/        # Компоненты авторизации
+│       │   ├── Cart/            # Корзина товаров
+│       │   ├── Header/          # Шапка сайта
+│       │   └── ...
+│       ├── pages/               # Страницы приложения
+│       │   ├── Login.js         # Страница входа
+│       │   ├── Register.js      # Страница регистрации
+│       │   ├── News.js          # Страница новостей
+│       │   ├── Checkout.js      # Оформление заказа
+│       │   └── Home.js          # Главная страница
+│       ├── context/             # Context API
+│       │   ├── AuthContext.js   # Контекст авторизации
+│       │   └── CartContext.js   # Контекст корзины
+│       ├── services/            # API клиенты
+│       │   └── api.js           # HTTP запросы к серверу
+│       ├── hooks/               # Пользовательские хуки
+│       │   └── useFormValidation.js
+│       └── utils/               # Утилиты
+│           └── priceUtils.js    # Работа с ценами
 ├── backend/
-│   ├── routes/             # API маршруты
-│   │   ├── auth.js         # Авторизация
-│   │   ├── news.js         # Новости
-│   │   ├── orders.js       # Заказы
-│   │   └── products.js     # Товары
-│   ├── middleware/         # Middleware
-│   │   └── auth.js         # Проверка JWT токенов
-│   ├── config/             # Конфигурация
-│   │   └── database.js     # Подключение к PostgreSQL
-│   └── database/           # SQL скрипты
+│   ├── routes/                  # API маршруты
+│   │   ├── auth.js              # Авторизация
+│   │   ├── news.js              # Новости
+│   │   ├── orders.js            # Заказы
+│   │   └── products.js          # Товары
+│   ├── middleware/              # Middleware
+│   │   └── auth.js              # Проверка JWT токенов
+│   ├── config/                  # Конфигурация
+│   │   └── database.js          # Подключение к PostgreSQL
+│   └── database/                # SQL скрипты
 │       └── create_orders_tables.sql
+├── backend/package.json
+├── frontend/package.json
 └── package.json
 ```
 
 ## Установка и запуск
 
-1. Установка зависимостей:
+1. Установка зависимостей (корень, backend, frontend):
 ```bash
-npm install
+npm run install:all
 ```
 
 2. Настройка базы данных PostgreSQL и выполнение SQL скриптов
 
-3. Настройка переменных окружения в `backend/.env`
+3. Настройка переменных окружения:
+- `backend/.env` — параметры БД, JWT и порт (по умолчанию `PORT=4000`)
+- `frontend/.env` — например: `REACT_APP_API_URL=http://localhost:4000`
 
-4. Запуск приложения:
+4. Запуск в режиме разработки (одновременно backend и frontend):
 ```bash
-# Запуск backend сервера
-npm run backend
+npm run dev
+```
 
-# Запуск frontend (в новом терминале)
-npm start
+Альтернативно:
+```bash
+# Только backend (dev с nodemon)
+npm run dev:backend
+
+# Только frontend (CRA на :3000)
+npm run start:frontend
+
+# Сборка фронтенда
+npm run build:frontend
 ```
 
 ## Особенности реализации
