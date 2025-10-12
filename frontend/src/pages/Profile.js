@@ -40,13 +40,17 @@ const Profile = () => {
   return (
     <div className="profile-page">
       <div className="container">
+        <div className="profile-top">
+          <h1 className="profile-title">Профиль пользователя</h1>
+          <p className="profile-subtitle">Данные аккаунта и настройки</p>
+        </div>
         <div className="profile-card">
           <div className="profile-header">
             <div className="profile-avatar">
               <User size={32} />
             </div>
             <div className="profile-title">
-              <h1>Профиль</h1>
+              <h2>Основная информация</h2>
               <p>Управляйте своим аккаунтом</p>
             </div>
             <button className="logout-btn" onClick={handleLogout} title="Выйти">
@@ -59,7 +63,7 @@ const Profile = () => {
 
           {loading ? (
             <div className="profile-loading">
-              <div className="spinner" /> Загрузка профиля...
+              <div className="profile-spinner" /> Загрузка профиля...
             </div>
           ) : (
             <div className="profile-content">
@@ -74,6 +78,10 @@ const Profile = () => {
               <div className="profile-row">
                 <span className="label">ID</span>
                 <span className="value mono">{profile?.id}</span>
+              </div>
+
+              <div className="profile-actions">
+                <button type="button" className="profile-primary-btn">Редактировать профиль</button>
               </div>
             </div>
           )}
