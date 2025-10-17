@@ -62,6 +62,52 @@ export async function getProductsGrouped() {
   return request('/products/categories/grouped');
 }
 
+// Поиск товаров с фильтрами и пагинацией
+export async function searchProducts({ q, category, minPrice, maxPrice, sort, page = 1, pageSize = 12, isNew, isPopular, hasDiscount } = {}) {
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (category) params.set('category', category);
+  if (minPrice != null) params.set('minPrice', String(minPrice));
+  if (maxPrice != null) params.set('maxPrice', String(maxPrice));
+  if (sort) params.set('sort', sort);
+  if (page) params.set('page', String(page));
+  if (pageSize) params.set('pageSize', String(pageSize));
+  if (isNew != null) params.set('isNew', String(isNew));
+  if (isPopular != null) params.set('isPopular', String(isPopular));
+  if (hasDiscount != null) params.set('hasDiscount', String(hasDiscount));
+  return request(`/products/search?${params.toString()}`);
+}
+
+// Подсказки поиска
+export async function suggestProducts(q) {
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  return request(`/products/suggest?${params.toString()}`);
+}
+
+// Категории
+export async function getCategories() {
+  return request('/products/meta/categories');
+}
+
+// Детальная информация о товаре
+export async function getProduct(id) {
+  return request(`/products/${id}`);
+}
+
+// Связанные товары
+export async function getRelatedProducts(id) {
+  return request(`/products/related/${id}`);
+}
+
+// Получить товары по списку ID
+export async function getProductsByIds(ids = []) {
+  if (!ids.length) return [];
+  const params = new URLSearchParams();
+  params.set('ids', ids.join(','));
+  return request(`/products/by-ids?${params.toString()}`);
+}
+
 // Auth
 export async function login({ email, password }) {
   // POST /auth/login -> { token, user }

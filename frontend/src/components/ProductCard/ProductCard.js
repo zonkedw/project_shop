@@ -1,14 +1,24 @@
-import React from 'react';
-import { Star, ShoppingCart } from 'lucide-react';
+import React, { useState } from 'react';
+import { Star, ShoppingCart, Heart } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { formatPrice, safePrice } from '../../utils/priceUtils';
+import { Link } from 'react-router-dom';
+import { isFavorite, toggleFavorite } from '../../utils/favorites';
 import './ProductCard.css';
 
 const ProductCard = ({ product }) => {
   const { addToCart } = useCart();
+  const [fav, setFav] = useState(isFavorite(product.id));
 
   const handleAddToCart = () => {
     addToCart(product);
+  };
+
+  const handleToggleFavorite = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    toggleFavorite(product.id);
+    setFav(isFavorite(product.id));
   };
 
   const renderStars = (rating) => {
@@ -55,12 +65,16 @@ const ProductCard = ({ product }) => {
         </div>
       )}
       
-      <div className="product-image">
+      <button className={`favorite-btn ${fav ? 'active' : ''}`} onClick={handleToggleFavorite} title={fav ? 'Убрать из избранного' : 'В избранное'}>
+        <Heart size={18} color="#ff6b35" fill={fav ? '#ff6b35' : 'none'} />
+      </button>
+
+      <Link to={`/product/${product.id}`} className="product-image">
         <img src={product.image} alt={product.name} />
-      </div>
+      </Link>
       
       <div className="product-info">
-        <h3 className="product-name">{product.name}</h3>
+        <Link to={`/product/${product.id}`} className="product-name">{product.name}</Link>
         
         <div className="product-rating">
           <div className="stars">

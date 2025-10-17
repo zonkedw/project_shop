@@ -1,5 +1,6 @@
 import React from 'react';
 import { Phone, Mail, MapPin, Clock } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import './Footer.css';
 
 const Footer = () => {
@@ -10,9 +11,9 @@ const Footer = () => {
           <div className="footer-section">
             <h3>О компании</h3>
             <ul>
-              <li><a href="#about">О нас</a></li>
-              <li><a href="#career">Карьера</a></li>
-              <li><a href="#news">Новости</a></li>
+              <li><Link to="/about">О нас</Link></li>
+              <li><Link to="/vacancies">Вакансии</Link></li>
+              <li><Link to="/news">Новости</Link></li>
               <li><a href="#investors">Инвесторам</a></li>
             </ul>
           </div>
@@ -23,7 +24,7 @@ const Footer = () => {
               <li><a href="#delivery">Доставка</a></li>
               <li><a href="#payment">Оплата</a></li>
               <li><a href="#returns">Возврат товара</a></li>
-              <li><a href="#help">Помощь</a></li>
+              <li><Link to="/favorites">Избранное</Link></li>
             </ul>
           </div>
           
@@ -38,7 +39,7 @@ const Footer = () => {
           </div>
           
           <div className="footer-section">
-            <h3>Контакты</h3>
+            <h3><Link to="/contacts" style={{ color: '#ff6b35' }}>Контакты</Link></h3>
             <div className="contact-info">
               <div className="contact-item">
                 <Phone size={16} />

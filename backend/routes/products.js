@@ -6,7 +6,7 @@ const router = express.Router();
 // Получить все товары
 router.get('/', async (req, res) => {
   try {
-    const { category, search, limit, offset } = req.query;
+    const { category, search, limit, offset, minPrice, maxPrice, isNew, isPopular, hasDiscount, sort } = req.query;
     
     let query = 'SELECT * FROM products WHERE 1=1';
     const params = [];
@@ -26,8 +26,35 @@ router.get('/', async (req, res) => {
       paramIndex++;
     }
 
+    if (minPrice) {
+      query += ` AND price >= $${paramIndex}`;
+      params.push(parseFloat(minPrice));
+      paramIndex++;
+    }
+
+    if (maxPrice) {
+      query += ` AND price <= $${paramIndex}`;
+      params.push(parseFloat(maxPrice));
+      paramIndex++;
+    }
+
+    if (isNew === 'true') {
+      query += ` AND is_new = true`;
+    }
+
+    if (isPopular === 'true') {
+      query += ` AND is_popular = true`;
+    }
+
+    if (hasDiscount === 'true') {
+      query += ` AND discount > 0`;
+    }
+
     // Сортировка
-    query += ' ORDER BY created_at DESC';
+    if (sort === 'price_asc') query += ' ORDER BY price ASC, id DESC';
+    else if (sort === 'price_desc') query += ' ORDER BY price DESC, id DESC';
+    else if (sort === 'rating_desc') query += ' ORDER BY rating DESC, reviews DESC';
+    else query += ' ORDER BY created_at DESC';
 
     // Пагинация
     if (limit) {
@@ -47,6 +74,113 @@ router.get('/', async (req, res) => {
   } catch (error) {
     console.error('Ошибка получения товаров:', error);
     res.status(500).json({ error: 'Ошибка получения товаров' });
+  }
+});
+
+// Поиск с пагинацией и общим количеством
+router.get('/search', async (req, res) => {
+  try {
+    const { q, category, minPrice, maxPrice, sort, page = 1, pageSize = 12, isNew, isPopular, hasDiscount } = req.query;
+
+    const where = [];
+    const params = [];
+    let i = 1;
+
+    if (q) {
+      where.push(`name ILIKE $${i++}`);
+      params.push(`%${q}%`);
+    }
+
+    if (category) {
+      where.push(`category = $${i++}`);
+      params.push(category);
+    }
+
+    if (minPrice) {
+      where.push(`price >= $${i++}`);
+      params.push(parseFloat(minPrice));
+    }
+
+    if (maxPrice) {
+      where.push(`price <= $${i++}`);
+      params.push(parseFloat(maxPrice));
+    }
+
+    if (isNew === 'true') where.push(`is_new = true`);
+    if (isPopular === 'true') where.push(`is_popular = true`);
+    if (hasDiscount === 'true') where.push(`discount > 0`);
+
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+    const countSql = `SELECT COUNT(*)::int AS total FROM products ${whereSql}`;
+    const countRes = await pool.query(countSql, params);
+    const total = countRes.rows[0].total || 0;
+
+    let orderSql = 'ORDER BY created_at DESC';
+    if (sort === 'price_asc') orderSql = 'ORDER BY price ASC, id DESC';
+    else if (sort === 'price_desc') orderSql = 'ORDER BY price DESC, id DESC';
+    else if (sort === 'rating_desc') orderSql = 'ORDER BY rating DESC, reviews DESC';
+
+    const p = Math.max(parseInt(page), 1);
+    const ps = Math.max(parseInt(pageSize), 1);
+    const offset = (p - 1) * ps;
+
+    const itemsSql = `SELECT * FROM products ${whereSql} ${orderSql} LIMIT $${i} OFFSET $${i + 1}`;
+    const itemsRes = await pool.query(itemsSql, [...params, ps, offset]);
+
+    res.json({ items: itemsRes.rows, total, page: p, pageSize: ps });
+  } catch (error) {
+    console.error('Ошибка поиска товаров:', error);
+    res.status(500).json({ error: 'Ошибка поиска товаров' });
+  }
+});
+
+// Подсказки для поиска
+router.get('/suggest', async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || !q.trim()) return res.json([]);
+    const result = await pool.query(
+      'SELECT id, name, price, image FROM products WHERE name ILIKE $1 ORDER BY rating DESC, reviews DESC LIMIT 8',
+      [`%${q}%`]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Ошибка подсказок поиска:', error);
+    res.status(500).json({ error: 'Ошибка подсказок поиска' });
+  }
+});
+
+// Получить товары по списку ID
+router.get('/by-ids', async (req, res) => {
+  try {
+    const { ids } = req.query;
+    if (!ids) return res.json([]);
+    const list = ids.split(',').map(x => parseInt(x)).filter(Number.isInteger);
+    if (!list.length) return res.json([]);
+    const result = await pool.query('SELECT * FROM products WHERE id = ANY($1::int[])', [list]);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Ошибка получения списка товаров:', error);
+    res.status(500).json({ error: 'Ошибка получения списка товаров' });
+  }
+});
+
+// Связанные товары по категории
+router.get('/related/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const current = await pool.query('SELECT category FROM products WHERE id = $1', [id]);
+    if (!current.rows.length) return res.json([]);
+    const category = current.rows[0].category;
+    const related = await pool.query(
+      'SELECT * FROM products WHERE category = $1 AND id <> $2 ORDER BY rating DESC, reviews DESC LIMIT 8',
+      [category, id]
+    );
+    res.json(related.rows);
+  } catch (error) {
+    console.error('Ошибка получения связанных товаров:', error);
+    res.status(500).json({ error: 'Ошибка получения связанных товаров' });
   }
 });
 

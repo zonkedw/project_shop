@@ -1,26 +1,66 @@
-import React, { useState } from 'react';
-import { Search, User, ShoppingCart, MapPin, Phone, LogOut } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Search, User, ShoppingCart, MapPin, Phone, LogOut, Heart, ChevronDown } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { formatPrice } from '../../utils/priceUtils';
 import { Link, useNavigate } from 'react-router-dom';
 import './Header.css';
+import { suggestProducts, getCategories } from '../../services/api';
 
 const Header = ({ onCartClick }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggest, setShowSuggest] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [catalogOpen, setCatalogOpen] = useState(false);
+  const closeTimer = useRef(null);
   const { totalItems, totalPrice } = useCart();
   const { isAuthenticated, user, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleSearch = (e) => {
     e.preventDefault();
-    // Здесь будет логика поиска
-    console.log('Поиск:', searchQuery);
+    const q = searchQuery.trim();
+    if (!q) return;
+    navigate(`/search?q=${encodeURIComponent(q)}`);
+    setShowSuggest(false);
   };
 
   const handleLogout = () => {
     logout();
     navigate('/');
+  };
+
+  // Debounced suggestions
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (!q) { setSuggestions([]); return; }
+    const t = setTimeout(async () => {
+      try {
+        const s = await suggestProducts(q);
+        setSuggestions(Array.isArray(s) ? s : []);
+        setShowSuggest(true);
+      } catch {
+        setSuggestions([]);
+      }
+    }, 250);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  // Catalog hover logic with small delay
+  const cancelClose = () => { if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; } };
+  const scheduleClose = () => { cancelClose(); closeTimer.current = setTimeout(() => setCatalogOpen(false), 180); };
+  const openCatalog = async () => {
+    cancelClose();
+    setCatalogOpen(true);
+    if (categories.length === 0) {
+      try {
+        const cats = await getCategories();
+        setCategories(Array.isArray(cats) ? cats : []);
+      } catch {
+        setCategories([]);
+      }
+    }
   };
 
   return (
@@ -61,14 +101,43 @@ const Header = ({ onCartClick }) => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="search-input"
+                  onFocus={() => searchQuery && setShowSuggest(true)}
+                  onBlur={() => setTimeout(() => setShowSuggest(false), 150)}
                 />
                 <button type="submit" className="search-button">
                   <Search size={20} />
                 </button>
               </div>
+              {showSuggest && suggestions.length > 0 && (
+                <div className="search-suggestions">
+                  {suggestions.slice(0,6).map((s) => (
+                    <button
+                      type="button"
+                      key={s.id}
+                      className="suggest-item"
+                      onMouseDown={() => navigate(`/product/${s.id}`)}
+                    >
+                      <img src={s.image} alt="" />
+                      <span className="suggest-name">{s.name}</span>
+                      <span className="suggest-price">{formatPrice(s.price)} ₽</span>
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className="suggest-item suggest-footer"
+                    onMouseDown={() => navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`)}
+                  >
+                    <span className="suggest-name">Показать все результаты</span>
+                  </button>
+                </div>
+              )}
             </form>
             
             <div className="header-actions">
+              <Link className="header-action-btn" to="/favorites" title="Избранное">
+                <Heart size={22} />
+                <span>Избранное</span>
+              </Link>
               {isAuthenticated ? (
                 <div className="header-action-btn" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Link to="/profile" className="header-action-btn" title="Профиль" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -106,7 +175,31 @@ const Header = ({ onCartClick }) => {
       <div className="header-nav">
         <div className="container">
           <nav className="main-nav">
-            <Link to="/" className="nav-link">Каталог</Link>
+            <div
+              className="nav-link catalog-trigger"
+              onMouseEnter={openCatalog}
+              onMouseLeave={scheduleClose}
+            >
+              <Link to="/catalog" className="nav-link" onMouseEnter={openCatalog}>
+                Каталог
+              </Link>
+              <ChevronDown size={16} style={{ marginLeft: 6 }} />
+              {catalogOpen && (
+                <div className="catalog-dropdown" onMouseEnter={cancelClose} onMouseLeave={scheduleClose}>
+                  <div className="catalog-grid">
+                    {categories.map((c) => (
+                      <Link key={c} to={`/category/${encodeURIComponent(c)}`} className="catalog-item">
+                        <div className="catalog-thumb" />
+                        <span>{c}</span>
+                      </Link>
+                    ))}
+                    {categories.length === 0 && (
+                      <div className="catalog-empty">Категории недоступны</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
             <a href="#sales" className="nav-link">Акции</a>
             <a href="#new" className="nav-link">Новинки</a>
             <a href="#popular" className="nav-link">Популярное</a>
