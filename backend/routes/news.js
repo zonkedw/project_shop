@@ -1,6 +1,6 @@
 const express = require('express');
 const pool = require('../config/database');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -88,7 +88,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Создать новость - НОВАЯ ПРОСТАЯ ВЕРСИЯ
-router.post('/', authenticateToken, async (req, res) => {
+router.post('/', authenticateToken, requireAdmin, async (req, res) => {
   console.log('=== СОЗДАНИЕ НОВОСТИ ===');
   console.log('Body:', req.body);
   console.log('User:', req.user);
@@ -140,39 +140,24 @@ router.post('/', authenticateToken, async (req, res) => {
 });
 
 // Обновить новость (требует авторизации, только автор может редактировать)
-router.put('/:id', authenticateToken, async (req, res) => {
+router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { title, content } = req.body;
-    const userId = req.user.id;
 
-    // Проверяем, существует ли новость и принадлежит ли она пользователю
-    const existingNews = await pool.query(
-      'SELECT author_id FROM news WHERE id = $1',
-      [id]
-    );
-
-    if (existingNews.rows.length === 0) {
-      return res.status(404).json({ error: 'Новость не найдена' });
-    }
-
-    if (existingNews.rows[0].author_id !== userId) {
-      return res.status(403).json({ error: 'Нет прав для редактирования этой новости' });
-    }
-
-    // Валидация
     if (!title || !content) {
       return res.status(400).json({ error: 'Заголовок и содержание обязательны' });
     }
 
-    // Обновление новости
-    const result = await pool.query(`
-      UPDATE news 
-      SET title = $1, content = $2, updated_at = CURRENT_TIMESTAMP 
-      WHERE id = $3 
-      RETURNING id, title, content, created_at, updated_at
-    `, [title, content, id]);
+    const result = await pool.query(
+      `UPDATE news 
+       SET title = $1, content = $2, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $3 
+       RETURNING id, title, content, created_at, updated_at`,
+      [title, content, id]
+    );
 
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Новость не найдена' });
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Ошибка обновления новости:', error);
@@ -181,28 +166,12 @@ router.put('/:id', authenticateToken, async (req, res) => {
 });
 
 // Удалить новость (требует авторизации, только автор может удалить)
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
-
-    // Проверяем, существует ли новость и принадлежит ли она пользователю
-    const existingNews = await pool.query(
-      'SELECT author_id FROM news WHERE id = $1',
-      [id]
-    );
-
-    if (existingNews.rows.length === 0) {
-      return res.status(404).json({ error: 'Новость не найдена' });
-    }
-
-    if (existingNews.rows[0].author_id !== userId) {
-      return res.status(403).json({ error: 'Нет прав для удаления этой новости' });
-    }
-
-    // Удаление новости
+    const existing = await pool.query('SELECT id FROM news WHERE id = $1', [id]);
+    if (existing.rows.length === 0) return res.status(404).json({ error: 'Новость не найдена' });
     await pool.query('DELETE FROM news WHERE id = $1', [id]);
-
     res.json({ message: 'Новость успешно удалена' });
   } catch (error) {
     console.error('Ошибка удаления новости:', error);

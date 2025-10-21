@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const bcrypt = require('bcryptjs');
 
 const createTables = async () => {
   try {
@@ -11,11 +12,16 @@ const createTables = async () => {
         name VARCHAR(100) NOT NULL,
         email VARCHAR(255) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
+        is_admin BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
     console.log('✅ Таблица users создана');
+
+    // Добавляем колонку is_admin, если таблица уже была
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE`);
+    console.log('✅ Колонка users.is_admin гарантирована');
 
     // Создание таблицы товаров
     await pool.query(`
@@ -50,6 +56,72 @@ const createTables = async () => {
       )
     `);
     console.log('✅ Таблица news создана');
+
+    // Создание и актуализация таблиц заказов
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS orders (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        order_number VARCHAR(50) UNIQUE NOT NULL,
+        status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending','confirmed','preparing','delivering','completed','cancelled')),
+        subtotal_price DECIMAL(10,2) DEFAULT 0,
+        total_price DECIMAL(10,2) NOT NULL,
+        total_items INTEGER NOT NULL,
+        delivery_method VARCHAR(20) NOT NULL CHECK (delivery_method IN ('courier','pickup')),
+        delivery_price DECIMAL(10,2) DEFAULT 0,
+        delivery_address TEXT,
+        delivery_city VARCHAR(100),
+        delivery_postal_code VARCHAR(10),
+        payment_method VARCHAR(20) NOT NULL CHECK (payment_method IN ('card','cash')),
+        customer_first_name VARCHAR(100) NOT NULL,
+        customer_last_name VARCHAR(100),
+        customer_email VARCHAR(255) NOT NULL,
+        customer_phone VARCHAR(20) NOT NULL,
+        discount_code VARCHAR(50),
+        discount_amount DECIMAL(10,2) DEFAULT 0,
+        comment TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS order_items (
+        id SERIAL PRIMARY KEY,
+        order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,
+        product_id INTEGER NOT NULL,
+        product_name VARCHAR(255) NOT NULL,
+        price DECIMAL(10,2) NOT NULL,
+        quantity INTEGER NOT NULL CHECK (quantity > 0),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS subtotal_price DECIMAL(10,2) DEFAULT 0`);
+    await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_code VARCHAR(50)`);
+    await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(10,2) DEFAULT 0`);
+    await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_order_items_product_id ON order_items(product_id)`);
+    console.log('✅ Таблицы orders и order_items созданы/актуализированы');
+
+    // Создаем администратора по умолчанию, если отсутствует
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@foodshop.local';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'admin12345';
+    const exists = await pool.query('SELECT id FROM users WHERE email = $1', [adminEmail.toLowerCase()]);
+    if (exists.rows.length === 0) {
+      console.log('👤 Создание пользователя-администратора:', adminEmail);
+      const salt = await bcrypt.genSalt(12);
+      const hash = await bcrypt.hash(adminPassword, salt);
+      await pool.query(
+        'INSERT INTO users (name, email, password, is_admin) VALUES ($1, $2, $3, TRUE)',
+        ['Administrator', adminEmail.toLowerCase(), hash]
+      );
+      console.log('✅ Администратор создан (email и пароль заданы через переменные окружения или значения по умолчанию)');
+    } else {
+      console.log('ℹ️ Администратор уже существует:', adminEmail);
+    }
 
     // Заполнение таблицы товаров тестовыми данными
     const productsCount = await pool.query('SELECT COUNT(*) FROM products');

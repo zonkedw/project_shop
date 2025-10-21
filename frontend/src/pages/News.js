@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, User, LogIn } from 'lucide-react';
-import { getNews, addNews, testNewsAPI, testJSON } from '../services/api';
+import { getNews, addNews, updateNews, deleteNews, testNewsAPI, testJSON } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import './News.css';
 
 const News = () => {
-  const { isAuthenticated, token, user } = useAuth();
+  const { isAuthenticated, isAdmin, loading: authLoading, token, user } = useAuth();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -14,6 +14,10 @@ const News = () => {
   const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editContent, setEditContent] = useState('');
+  const [busyId, setBusyId] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -149,20 +153,79 @@ const News = () => {
           <div className="news-grid">
             {items.map((newsItem) => (
               <article key={newsItem.id || newsItem._id} className="news-card">
-                <h2 className="news-card-title">{newsItem.title}</h2>
-                <div className="news-card-meta">
-                  <div className="news-card-date">
-                    <Calendar size={16} />
-                    {formatDate(newsItem.createdAt)}
-                  </div>
-                  {newsItem.author && (
-                    <div className="news-card-author">
-                      <User size={16} />
-                      {newsItem.author}
+                {editingId === (newsItem.id || newsItem._id) ? (
+                  <div>
+                    <input
+                      className="news-form-input"
+                      value={editTitle}
+                      onChange={(e)=>setEditTitle(e.target.value)}
+                      placeholder="Заголовок"
+                      style={{ marginBottom: 8 }}
+                    />
+                    <textarea
+                      className="news-form-textarea"
+                      rows={4}
+                      value={editContent}
+                      onChange={(e)=>setEditContent(e.target.value)}
+                      placeholder="Содержание"
+                      style={{ marginBottom: 8 }}
+                    />
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        className="btn btn-primary"
+                        disabled={busyId === (newsItem.id || newsItem._id)}
+                        onClick={async ()=>{
+                          try {
+                            setBusyId(newsItem.id || newsItem._id);
+                            await updateNews(newsItem.id || newsItem._id, { title: editTitle, content: editContent }, token);
+                            await load();
+                            setEditingId(null);
+                          } catch(e){ setError(e.message); } finally { setBusyId(null); }
+                        }}
+                      >Сохранить</button>
+                      <button className="btn" onClick={()=> setEditingId(null)}>Отменить</button>
                     </div>
-                  )}
-                </div>
-                <p className="news-card-content">{newsItem.content}</p>
+                  </div>
+                ) : (
+                  <>
+                    <h2 className="news-card-title">{newsItem.title}</h2>
+                    <div className="news-card-meta">
+                      <div className="news-card-date">
+                        <Calendar size={16} />
+                        {formatDate(newsItem.createdAt || newsItem.created_at)}
+                      </div>
+                      {newsItem.author || newsItem.author_name ? (
+                        <div className="news-card-author">
+                          <User size={16} />
+                          {newsItem.author || newsItem.author_name}
+                        </div>
+                      ) : null}
+                    </div>
+                    <p className="news-card-content">{newsItem.content}</p>
+
+                    {isAuthenticated && isAdmin && (
+                      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                        <button
+                          className="btn"
+                          onClick={()=> { setEditingId(newsItem.id || newsItem._id); setEditTitle(newsItem.title); setEditContent(newsItem.content); }}
+                        >Редактировать</button>
+                        <button
+                          className="btn"
+                          style={{ border: '1px solid #dc3545', color: '#dc3545', background: '#fff' }}
+                          disabled={busyId === (newsItem.id || newsItem._id)}
+                          onClick={async ()=>{
+                            if (!window.confirm('Удалить новость?')) return;
+                            try {
+                              setBusyId(newsItem.id || newsItem._id);
+                              await deleteNews(newsItem.id || newsItem._id, token);
+                              await load();
+                            } catch(e){ setError(e.message); } finally { setBusyId(null); }
+                          }}
+                        >Удалить</button>
+                      </div>
+                    )}
+                  </>
+                )}
               </article>
             ))}
             
@@ -175,7 +238,7 @@ const News = () => {
           </div>
         )}
 
-        {isAuthenticated ? (
+        {isAuthenticated && isAdmin ? (
           <div className="news-form-section">
             <div className="news-form-header">
               <h3 className="news-form-title">Добавить новость</h3>
@@ -261,13 +324,17 @@ const News = () => {
           </div>
         ) : (
           <div className="news-login-prompt">
-            <p className="news-login-text">
-              Хотите добавить новость? Войдите в свой аккаунт
-            </p>
-            <Link to="/login" className="news-login-link">
-              <LogIn size={18} />
-              Войти в аккаунт
-            </Link>
+            {isAuthenticated ? (
+              <p className="news-login-text">Проверка прав администратора...</p>
+            ) : (
+              <>
+                <p className="news-login-text">Добавление новостей доступно только администратору.</p>
+                <Link to="/admin" className="news-login-link">
+                  <LogIn size={18} />
+                  Войти как администратор
+                </Link>
+              </>
+            )}
           </div>
         )}
       </div>

@@ -18,6 +18,9 @@ import Category from './pages/Category';
 import About from './pages/About';
 import Contacts from './pages/Contacts';
 import Vacancies from './pages/Vacancies';
+import AdminLogin from './pages/AdminLogin';
+import Orders from './pages/Orders';
+import AdminOrders from './pages/AdminOrders';
 import './App.css';
 
 function App() {
@@ -36,11 +39,14 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/news" element={<News />} />
+            <Route path="/admin" element={<AdminLogin />} />
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/search" element={<SearchResults />} />
             <Route path="/product/:id" element={<ProductDetails />} />
             <Route path="/favorites" element={<Favorites />} />
+            <Route path="/orders" element={<Orders />} />
+            <Route path="/admin/orders" element={<AdminOrders />} />
             <Route path="/catalog" element={<Catalog />} />
             <Route path="/category/:name" element={<Category />} />
             <Route path="/about" element={<About />} />

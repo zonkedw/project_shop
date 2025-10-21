@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { login as apiLogin, register as apiRegister } from '../services/api';
+import { login as apiLogin, register as apiRegister, getMe } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -27,7 +27,13 @@ export const AuthProvider = ({ children }) => {
     try {
       const { token: tkn, user: usr } = await apiLogin({ email, password });
       setToken(tkn);
-      setUser(usr || { email });
+      // Сразу обогащаем пользователя актуальными полями (включая is_admin)
+      try {
+        const me = await getMe(tkn);
+        setUser(me?.user || usr || { email });
+      } catch {
+        setUser(usr || { email });
+      }
       return true;
     } finally {
       setLoading(false);
@@ -51,7 +57,21 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
-  const value = useMemo(() => ({ token, user, isAuthenticated, loading, login, register, logout }), [token, user, isAuthenticated, loading]);
+  // Синхронизируем пользователя при наличии токена (например, после перезагрузки)
+  useEffect(() => {
+    (async () => {
+      if (!token) return;
+      try {
+        const me = await getMe(token);
+        if (me?.user) setUser(me.user);
+      } catch {
+        // токен просрочен/невалиден
+      }
+    })();
+  }, [token]);
+
+  const isAdmin = !!user?.is_admin;
+  const value = useMemo(() => ({ token, user, isAuthenticated, isAdmin, loading, login, register, logout }), [token, user, isAuthenticated, isAdmin, loading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

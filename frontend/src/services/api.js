@@ -229,6 +229,41 @@ export async function addNews({ title, content }, token) {
   }
 }
 
+export async function updateNews(id, { title, content }, token) {
+  if (!token) throw new Error('Нет токена авторизации');
+  if (!id) throw new Error('Не указан ID новости');
+  const body = { title: String(title || '').trim(), content: String(content || '').trim() };
+  const response = await fetch(`${BASE_URL}/api/news/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(body)
+  });
+  const data = await response.text();
+  if (!response.ok) {
+    try { const j = JSON.parse(data); throw new Error(j.error || 'Ошибка обновления'); } catch { throw new Error(data || 'Ошибка обновления'); }
+  }
+  return JSON.parse(data);
+}
+
+export async function deleteNews(id, token) {
+  if (!token) throw new Error('Нет токена авторизации');
+  if (!id) throw new Error('Не указан ID новости');
+  const response = await fetch(`${BASE_URL}/api/news/${id}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  if (!response.ok) {
+    const txt = await response.text();
+    try { const j = JSON.parse(txt); throw new Error(j.error || 'Ошибка удаления'); } catch { throw new Error(txt || 'Ошибка удаления'); }
+  }
+  return true;
+}
+
 // Orders
 export async function createOrder(orderData, token) {
   console.log('=== CLIENT: Создание заказа ===');
@@ -284,5 +319,48 @@ export async function getOrder(orderId, token) {
     headers: {
       Authorization: `Bearer ${token}`,
     },
+  });
+}
+
+// Order actions (user)
+export async function cancelOrder(orderId, token) {
+  return request(`/orders/${orderId}/cancel`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function applyDiscount(orderId, code, token) {
+  return request(`/orders/${orderId}/discount`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ code }),
+  });
+}
+
+// Order actions (admin)
+export async function updateOrderStatus(orderId, status, token) {
+  return request(`/orders/${orderId}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function getAllOrdersAdmin({ status, q, page = 1, pageSize = 20 } = {}, token) {
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  if (q) params.set('q', q);
+  if (page) params.set('page', String(page));
+  if (pageSize) params.set('pageSize', String(pageSize));
+  return request(`/orders/all?${params.toString()}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function deleteOrderAdmin(orderId, token) {
+  return request(`/orders/${orderId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
   });
 }

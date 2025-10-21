@@ -15,7 +15,7 @@ const Header = ({ onCartClick }) => {
   const [catalogOpen, setCatalogOpen] = useState(false);
   const closeTimer = useRef(null);
   const { totalItems, totalPrice } = useCart();
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, isAdmin, user, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleSearch = (e) => {
@@ -81,6 +81,8 @@ const Header = ({ onCartClick }) => {
             <div className="header-links">
               <Link to="/">Главная</Link>
               <Link to="/news">Новости</Link>
+              {isAuthenticated && <Link to="/orders">Мои заказы</Link>}
+              {isAdmin && <Link to="/admin/orders">Заказы (админ)</Link>}
             </div>
           </div>
         </div>

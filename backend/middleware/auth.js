@@ -17,7 +17,7 @@ const authenticateToken = async (req, res, next) => {
     console.log('Token OK, userId:', decoded.userId);
     
     const userResult = await pool.query(
-      'SELECT id, name, email FROM users WHERE id = $1',
+      'SELECT id, name, email, is_admin FROM users WHERE id = $1',
       [decoded.userId]
     );
 
@@ -35,4 +35,11 @@ const authenticateToken = async (req, res, next) => {
   }
 };
 
-module.exports = { authenticateToken };
+const requireAdmin = (req, res, next) => {
+  if (!req.user || req.user.is_admin !== true) {
+    return res.status(403).json({ error: 'Требуются права администратора' });
+  }
+  next();
+};
+
+module.exports = { authenticateToken, requireAdmin };

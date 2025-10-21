@@ -141,11 +141,16 @@ project_shop/
 npm run install:all
 ```
 
-2. Настройка базы данных PostgreSQL и выполнение SQL скриптов
+2. Инициализация базы данных PostgreSQL
+
+```bash
+npm run init-db
+```
 
 3. Настройка переменных окружения:
 - `backend/.env` — параметры БД, JWT и порт (по умолчанию `PORT=4000`)
 - `frontend/.env` — например: `REACT_APP_API_URL=http://localhost:4000`
+- `ADMIN_EMAIL`, `ADMIN_PASSWORD` — учётные данные администратора (создаются при выполнении `npm run init-db`)
 
 4. Запуск в режиме разработки (одновременно backend и frontend):
 ```bash
@@ -185,3 +190,27 @@ npm run build:frontend
 - **Избранное**: сердечко на карточке (toggle), страница `'/favorites'`, хранение в `localStorage`.
 - **Статика**: страницы `'/about'`, `'/contacts'`, `'/vacancies'`; обновлены ссылки в футере.
 - **API**: добавлены `GET /api/products/search`, `GET /api/products/suggest`, `GET /api/products/by-ids`, `GET /api/products/related/:id`; расширен `GET /api/products` фильтрами и сортировкой.
+
+## Изменения (21.10.2025)
+
+- **Backend**
+  - **CORS**: разрешён метод `PATCH`, добавлена явная обработка preflight `OPTIONS` в `backend/server.js`.
+  - **Заказы**: расширены эндпоинты в `backend/routes/orders.js`:
+    - `PATCH /api/orders/:id/status` — смена статуса заказа (только админ).
+    - `GET /api/orders/all` — список всех заказов с фильтрами (только админ).
+    - `DELETE /api/orders/:id` — удаление заказа (только админ).
+    - `POST /api/orders/:id/cancel` — отмена заказа пользователем.
+    - `POST /api/orders/:id/discount` — применение промокода к заказу.
+    - При создании заказа сохраняются `subtotal_price`, `discount_code`, `discount_amount`, `total_price`.
+  - **Инициализация БД**: добавлен скрипт `npm run init-db` для гарантии актуальных таблиц и колонок (включая `orders`/`order_items`).
+
+- **Frontend**
+  - **Страницы**: добавлена админ-страница заказов `'/admin/orders'` (`frontend/src/pages/AdminOrders.js`) — список заказов, фильтрация по статусам/поиску, смена статуса, удаление заказа.
+  - **Навигация**: в `frontend/src/components/Header/Header.js` добавлены ссылки «Мои заказы» (для авторизованных) и «Заказы (админ)» (для админов).
+  - **UX**: в `frontend/src/pages/AdminLogin.js` добавлены атрибуты `autocomplete` для полей email и пароля.
+
+- **API-клиент (frontend/src/services/api.js)**
+  - Добавлены методы работы с заказами для админа: `getAllOrdersAdmin`, `updateOrderStatus`, `deleteOrderAdmin` (и сопутствующие пользовательские операции).
+
+- **Запуск**
+  - Перед стартом разработки выполнять `npm run init-db`, далее `npm run dev`.

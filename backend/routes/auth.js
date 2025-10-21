@@ -35,7 +35,7 @@ router.post('/register', async (req, res) => {
 
     // Создание пользователя
     const newUser = await pool.query(
-      'INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING id, name, email, created_at',
+      'INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING id, name, email, is_admin, created_at',
       [name, email.toLowerCase(), hashedPassword]
     );
 
@@ -54,7 +54,8 @@ router.post('/register', async (req, res) => {
       user: {
         id: user.id,
         name: user.name,
-        email: user.email
+        email: user.email,
+        is_admin: user.is_admin === true
       }
     });
   } catch (error) {
@@ -75,7 +76,7 @@ router.post('/login', async (req, res) => {
 
     // Поиск пользователя
     const userResult = await pool.query(
-      'SELECT id, name, email, password FROM users WHERE email = $1',
+      'SELECT id, name, email, password, is_admin FROM users WHERE email = $1',
       [email.toLowerCase()]
     );
 
@@ -125,7 +126,7 @@ router.get('/me', async (req, res) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const userResult = await pool.query(
-      'SELECT id, name, email FROM users WHERE id = $1',
+      'SELECT id, name, email, is_admin FROM users WHERE id = $1',
       [decoded.userId]
     );
 
@@ -133,7 +134,8 @@ router.get('/me', async (req, res) => {
       return res.status(401).json({ error: 'Пользователь не найден' });
     }
 
-    res.json({ user: userResult.rows[0] });
+    const u = userResult.rows[0];
+    res.json({ user: { id: u.id, name: u.name, email: u.email, is_admin: u.is_admin === true } });
   } catch (error) {
     res.status(401).json({ error: 'Недействительный токен' });
   }
