@@ -1,0 +1,228 @@
+.yandex-map-section {
+  padding: 40px 0;
+  background: #f8f9fa;
+}
+
+/* Subtle scrollbar for WebKit */
+.stores-list::-webkit-scrollbar { width: 8px; }
+.stores-list::-webkit-scrollbar-thumb { background: #e1e5ea; border-radius: 8px; }
+.stores-list::-webkit-scrollbar-thumb:hover { background: #cfd6de; }
+
+.map-content {
+  display: grid;
+  grid-template-columns: 3fr 1.2fr;
+  gap: 28px;
+  align-items: stretch;
+}
+
+.yandex-map-container {
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  height: 100%;
+  min-height: 400px;
+  position: relative;
+}
+
+.yandex-map-container iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.map-fallback {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.stores-panel {
+  align-self: start;
+  position: sticky;
+  top: 96px;
+}
+
+.stores-list {
+  background: white;
+  border-radius: 16px;
+  padding: 24px 24px 20px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  max-height: 560px;
+  overflow: auto;
+}
+
+.stores-list h3 {
+  font-size: 20px;
+  font-weight: bold;
+  color: #333;
+  margin: 0 0 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.store-card {
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  transition: all 0.3s ease;
+  background: #fafafa;
+}
+
+.store-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(255, 107, 53, 0.1);
+  border-color: #ff6b35;
+}
+
+.store-card:last-of-type {
+  margin-bottom: 25px;
+}
+
+.store-name {
+  font-size: 18px;
+  font-weight: bold;
+  color: #ff6b35;
+  margin: 0 0 15px 0;
+}
+
+.store-info {
+  margin-bottom: 15px;
+}
+
+.store-info p {
+  margin: 10px 0;
+  color: #666;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.icon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+}
+
+.store-address {
+  font-weight: 600;
+  color: #333;
+}
+
+.store-phone a {
+  color: #28a745;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.store-phone a:hover {
+  text-decoration: underline;
+}
+
+.store-metro {
+  color: #007bff;
+  font-weight: 500;
+}
+
+.store-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.route-btn, .call-btn {
+  flex: 1;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.route-btn {
+  background: #28a745;
+  color: white;
+}
+
+.route-btn:hover {
+  background: #218838;
+  transform: translateY(-1px);
+}
+
+.call-btn {
+  background: #007bff;
+  color: white;
+}
+
+.call-btn:hover {
+  background: #0056b3;
+  transform: translateY(-1px);
+}
+
+.delivery-info {
+  background: linear-gradient(135deg, #ff6b35, #f7931e);
+  color: white;
+  padding: 16px;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.delivery-info h4 {
+  margin: 0 0 15px 0;
+  font-size: 18px;
+}
+
+.delivery-info p {
+  margin: 8px 0;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+/* Адаптивный дизайн */
+@media (max-width: 1024px) {
+  .map-content {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  
+  .yandex-map-container {
+    height: 350px;
+    min-height: 350px;
+  }
+}
+
+@media (max-width: 768px) {
+  .yandex-map-section {
+    padding: 40px 0;
+  }
+  
+  .yandex-map-container {
+    height: 300px;
+    min-height: 300px;
+  }
+  
+  .stores-panel { position: static; }
+  .stores-list { padding: 20px; max-height: none; }
+  
+  .stores-list h3 {
+    font-size: 20px;
+  }
+  
+  .store-card {
+    padding: 15px;
+  }
+  
+  .store-actions {
+    flex-direction: column;
+  }
+  
+  .route-btn, .call-btn {
+    width: 100%;
+  }
+}

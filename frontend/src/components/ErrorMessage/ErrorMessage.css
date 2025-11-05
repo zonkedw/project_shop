@@ -1,0 +1,80 @@
+.error-message {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-radius: 8px;
+  margin: 16px 0;
+  border: 1px solid;
+}
+
+.error-error {
+  background: #fee;
+  color: #dc3545;
+  border-color: #f5c6cb;
+}
+
+.error-warning {
+  background: #fff3cd;
+  color: #856404;
+  border-color: #ffeaa7;
+}
+
+.error-info {
+  background: #d1ecf1;
+  color: #0c5460;
+  border-color: #bee5eb;
+}
+
+.error-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.error-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.error-text {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.error-retry-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid currentColor;
+  color: inherit;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.error-retry-btn:hover {
+  background: currentColor;
+  color: white;
+}
+
+.error-error .error-retry-btn:hover {
+  background: #dc3545;
+  color: white;
+}
+
+.error-warning .error-retry-btn:hover {
+  background: #856404;
+  color: white;
+}
+
+.error-info .error-retry-btn:hover {
+  background: #0c5460;
+  color: white;
+}

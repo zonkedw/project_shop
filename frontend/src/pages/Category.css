@@ -1,0 +1,27 @@
+.category-layout { display: grid; grid-template-columns: 280px 1fr; gap: 24px; align-items: start; }
+
+/* Ensure predictable sizing */
+.category-layout *, .category-layout *::before, .category-layout *::after { box-sizing: border-box; }
+
+.sidebar-card { background: #fff; padding: 16px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.06); position: sticky; top: 100px; height: fit-content; }
+
+.form-group { margin-bottom: 12px; display: grid; gap: 8px; }
+
+.price-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+.price-input, .select-input { width: 100%; min-width: 0; border-radius: 8px; border: 1px solid #e9ecef; padding: 10px 12px; }
+
+/* Prevent number input spin buttons from changing layout */
+.price-input[type=number]::-webkit-outer-spin-button,
+.price-input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.price-input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+
+/* Consistent label spacing */
+.form-group > label { font-weight: 600; }
+
+.check-row { display: flex; gap: 8px; align-items: center; }
+
+@media (max-width: 1024px) {
+  .category-layout { grid-template-columns: 1fr; }
+  .sidebar-card { position: static; }
+}
