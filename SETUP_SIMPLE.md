@@ -1,73 +1,73 @@
-# Установка и запуск
+# Запуск проекта
 
-## Требования
+## ШАГ 1: База данных (один раз)
 
-- Node.js 16+
-- PostgreSQL 14+
-- Flutter 3+ (для мобильного приложения)
+У вас уже есть БД `fitness_baze` в pgAdmin.
 
-## Быстрый старт
+Нужно создать таблицы (продукты, пользователи, тренировки и т.д.):
 
-### 1. База данных
+1. Откройте pgAdmin
+2. Найдите БД `fitness_baze` → Правая кнопка → Query Tool
+3. File → Open → Выберите `database/schema.sql`
+4. Нажмите Execute (кнопка ▶️)
 
-В pgAdmin выполните файл `database/schema.sql` для БД `fitness_baze`
+Готово. Таблицы созданы.
 
-Проверка:
-```sql
-SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';
-```
-Должно быть 18 таблиц.
+## ШАГ 2: Backend (сервер)
 
-### 2. Backend
+Откройте терминал:
 
 ```bash
 cd backend
-npm install
-```
-
-Файл `.env` уже создан, проверьте параметры:
-- DB_NAME=fitness_baze
-- DB_USER=postgres
-- DB_PASSWORD=postgres (измените на ваш)
-
-Запуск:
-```bash
 npm run dev
 ```
 
-Backend доступен: http://localhost:3000
+Сервер запустится на http://localhost:3000
 
-### 3. Frontend
+Проверка: откройте в браузере http://localhost:3000
 
+## ШАГ 3: Frontend
+
+### На ПК:
 ```bash
 cd frontend
-flutter pub get
-flutter run
+flutter run -d windows
 ```
 
-## Тестирование API
+### На телефоне:
+1. Подключите телефон USB
+2. Включите отладку по USB
+3. ```bash
+   flutter run
+   ```
 
-Регистрация:
+**Важно для телефона:**
+Откройте файл `frontend/lib/services/api_service.dart`
+
+Замените:
+```dart
+static const String baseUrl = 'http://localhost:3000/api';
+```
+
+На (ваш IP компьютера):
+```dart
+static const String baseUrl = 'http://192.168.X.X:3000/api';
+```
+
+Узнать IP: `ipconfig` в терминале, строка IPv4
+
+## Проблемы
+
+**Backend не запускается:**
+Откройте `backend/.env` и измените `DB_PASSWORD` на ваш пароль от PostgreSQL
+
+**Flutter не видит телефон:**
 ```bash
-curl -X POST http://localhost:3000/api/auth/register -H "Content-Type: application/json" -d "{\"email\":\"test@test.com\",\"password\":\"123456\",\"username\":\"testuser\"}"
+flutter devices
 ```
 
-Авторизация:
-```bash
-curl -X POST http://localhost:3000/api/auth/login -H "Content-Type: application/json" -d "{\"email\":\"test@test.com\",\"password\":\"123456\"}"
-```
+**Таблицы не созданы:**
+В pgAdmin повторите ШАГ 1
 
-## Решение проблем
-
-**Ошибка подключения к БД:**
-- Проверьте что PostgreSQL запущен
-- Проверьте пароль в `.env`
-
-**Порт занят:**
-Измените PORT в `.env`
-
-**Flutter ошибки:**
-```bash
-flutter clean
-flutter pub get
-```
+## Expo Go НЕ НУЖЕН
+У вас Flutter, не React Native. Expo Go не используется.

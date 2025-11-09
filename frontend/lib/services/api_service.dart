@@ -3,7 +3,9 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ApiService {
-  // Измените на ваш IP если тестируете на телефоне
+  // Для ПК используйте localhost
+  // Для телефона замените на IP вашего компьютера (узнать: ipconfig в терминале)
+  // Пример: 'http://192.168.1.100:3000/api'
   static const String baseUrl = 'http://localhost:3000/api';
   
   final storage = const FlutterSecureStorage();
