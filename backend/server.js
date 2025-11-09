@@ -44,10 +44,9 @@ app.get('/api/health', (req, res) => {
 
 // Роуты
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/users', require('./routes/users'));
 app.use('/api/nutrition', require('./routes/nutrition'));
 app.use('/api/workouts', require('./routes/workouts'));
-// app.use('/api/users', require('./routes/users')); // TODO
-// app.use('/api/ai', require('./routes/ai')); // TODO
 
 // 404 handler
 app.use((req, res) => {
@@ -68,9 +67,9 @@ app.use((err, req, res, next) => {
 
 // Запуск сервера
 app.listen(PORT, () => {
-  console.log(`🚀 FitPilot Backend запущен на порту ${PORT}`);
-  console.log(`📝 Среда: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 http://localhost:${PORT}`);
+  console.log(`FitPilot Backend запущен на порту ${PORT}`);
+  console.log(`Среда: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`http://localhost:${PORT}`);
 });
 
 module.exports = app;

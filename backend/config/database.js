@@ -14,11 +14,11 @@ const pool = new Pool({
 
 // Проверка подключения
 pool.on('connect', () => {
-  console.log('✅ Подключено к базе данных PostgreSQL');
+  console.log('Подключено к базе данных PostgreSQL');
 });
 
 pool.on('error', (err) => {
-  console.error('❌ Ошибка подключения к БД:', err.message);
+  console.error('Ошибка подключения к БД:', err.message);
   process.exit(-1);
 });
 
