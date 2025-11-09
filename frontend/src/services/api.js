@@ -2,9 +2,9 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Для ПК используйте localhost
-// Для телефона замените на IP вашего компьютера
-// Пример: 'http://192.168.1.100:3000/api'
-const API_URL = 'http://localhost:3000/api';
+// Для телефона замените на IP вашего компьютера (узнать: ipconfig в терминале)
+// Пример: 'http://192.168.1.100:3001/api'
+const API_URL = 'http://localhost:3001/api';
 
 const api = axios.create({
   baseURL: API_URL,
