@@ -42,12 +42,12 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Роуты (будут добавлены позже)
-// app.use('/api/auth', require('./routes/auth'));
-// app.use('/api/users', require('./routes/users'));
-// app.use('/api/nutrition', require('./routes/nutrition'));
-// app.use('/api/workouts', require('./routes/workouts'));
-// app.use('/api/ai', require('./routes/ai'));
+// Роуты
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/nutrition', require('./routes/nutrition'));
+app.use('/api/workouts', require('./routes/workouts'));
+// app.use('/api/users', require('./routes/users')); // TODO
+// app.use('/api/ai', require('./routes/ai')); // TODO
 
 // 404 handler
 app.use((req, res) => {
