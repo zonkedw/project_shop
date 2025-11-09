@@ -81,7 +81,7 @@ export default function RegisterScreen({ navigation }) {
           placeholder="Пароль"
           value={password}
           onChangeText={setPassword}
-          secureTextEntry
+          secureTextEntry={true}
           editable={!loading}
         />
 
@@ -90,7 +90,7 @@ export default function RegisterScreen({ navigation }) {
           placeholder="Подтвердите пароль"
           value={confirmPassword}
           onChangeText={setConfirmPassword}
-          secureTextEntry
+          secureTextEntry={true}
           editable={!loading}
         />
 

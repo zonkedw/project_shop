@@ -59,7 +59,7 @@ export default function LoginScreen({ navigation }) {
           placeholder="Пароль"
           value={password}
           onChangeText={setPassword}
-          secureTextEntry
+          secureTextEntry={true}
           editable={!loading}
         />
 
