@@ -64,7 +64,7 @@ export default function RegisterScreen({ navigation }) {
           onChangeText={setEmail}
           keyboardType="email-address"
           autoCapitalize="none"
-          editable={!loading}
+          editable={loading ? false : true}
         />
 
         <TextInput
@@ -73,7 +73,7 @@ export default function RegisterScreen({ navigation }) {
           value={username}
           onChangeText={setUsername}
           autoCapitalize="none"
-          editable={!loading}
+          editable={loading ? false : true}
         />
 
         <TextInput
@@ -82,7 +82,7 @@ export default function RegisterScreen({ navigation }) {
           value={password}
           onChangeText={setPassword}
           secureTextEntry={true}
-          editable={!loading}
+          editable={loading ? false : true}
         />
 
         <TextInput
@@ -91,13 +91,13 @@ export default function RegisterScreen({ navigation }) {
           value={confirmPassword}
           onChangeText={setConfirmPassword}
           secureTextEntry={true}
-          editable={!loading}
+          editable={loading ? false : true}
         />
 
         <TouchableOpacity
           style={[styles.button, loading && styles.buttonDisabled]}
           onPress={handleRegister}
-          disabled={loading}
+          disabled={loading ? true : false}
         >
           {loading ? (
             <ActivityIndicator color="#fff" />
@@ -108,7 +108,7 @@ export default function RegisterScreen({ navigation }) {
 
         <TouchableOpacity
           onPress={() => navigation.navigate('Login')}
-          disabled={loading}
+          disabled={loading ? true : false}
         >
           <Text style={styles.linkText}>Уже есть аккаунт? Войти</Text>
         </TouchableOpacity>

@@ -51,7 +51,7 @@ export default function LoginScreen({ navigation }) {
           onChangeText={setEmail}
           keyboardType="email-address"
           autoCapitalize="none"
-          editable={!loading}
+          editable={loading ? false : true}
         />
 
         <TextInput
@@ -60,13 +60,13 @@ export default function LoginScreen({ navigation }) {
           value={password}
           onChangeText={setPassword}
           secureTextEntry={true}
-          editable={!loading}
+          editable={loading ? false : true}
         />
 
         <TouchableOpacity
           style={[styles.button, loading && styles.buttonDisabled]}
           onPress={handleLogin}
-          disabled={loading}
+          disabled={loading ? true : false}
         >
           {loading ? (
             <ActivityIndicator color="#fff" />
@@ -77,7 +77,7 @@ export default function LoginScreen({ navigation }) {
 
         <TouchableOpacity
           onPress={() => navigation.navigate('Register')}
-          disabled={loading}
+          disabled={loading ? true : false}
         >
           <Text style={styles.linkText}>Нет аккаунта? Регистрация</Text>
         </TouchableOpacity>
