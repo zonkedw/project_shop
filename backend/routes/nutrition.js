@@ -1,0 +1,636 @@
+const express = require('express');
+const router = express.Router();
+const { query, getClient } = require('../config/database');
+const { authMiddleware } = require('../middleware/auth');
+
+// Все роуты требуют авторизации
+router.use(authMiddleware);
+
+/**
+ * @route   GET /api/nutrition/products/search
+ * @desc    Поиск продуктов по названию
+ * @access  Private
+ */
+router.get('/products/search', async (req, res) => {
+  try {
+    const { q, category, limit = 20, offset = 0 } = req.query;
+
+    if (!q || q.length < 2) {
+      return res.status(400).json({ error: 'Запрос должен содержать минимум 2 символа' });
+    }
+
+    let queryText = `
+      SELECT product_id, name, brand, barcode, 
+             calories_per_100, protein_per_100, carbs_per_100, fats_per_100,
+             fiber_per_100, sugar_per_100, category, is_verified
+      FROM products
+      WHERE name ILIKE $1
+    `;
+    const params = [`%${q}%`];
+
+    if (category) {
+      queryText += ` AND category = $${params.length + 1}`;
+      params.push(category);
+    }
+
+    queryText += ` ORDER BY is_verified DESC, name ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    params.push(parseInt(limit), parseInt(offset));
+
+    const result = await query(queryText, params);
+
+    res.json({
+      products: result.rows,
+      count: result.rows.length,
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+  } catch (error) {
+    console.error('Product search error:', error);
+    res.status(500).json({ error: 'Ошибка поиска продуктов' });
+  }
+});
+
+/**
+ * @route   GET /api/nutrition/diary/stats
+ * @desc    Получить агрегированную статистику питания за период (последние N дней)
+ * @access  Private
+ */
+router.get('/diary/stats', async (req, res) => {
+  try {
+    const { days = 7 } = req.query;
+    const period = parseInt(days, 10);
+
+    if (![7, 30].includes(period)) {
+      return res.status(400).json({ error: 'Поддерживаются периоды 7 или 30 дней' });
+    }
+
+    const result = await query(
+      `SELECT m.meal_date::date AS date,
+              SUM(m.total_calories) AS calories,
+              SUM(m.total_protein) AS protein,
+              SUM(m.total_carbs) AS carbs,
+              SUM(m.total_fats) AS fats
+       FROM meals m
+       WHERE m.user_id = $1
+         AND m.meal_date >= (CURRENT_DATE - $2::int + 1)
+         AND m.meal_date <= CURRENT_DATE
+       GROUP BY m.meal_date
+       ORDER BY m.meal_date ASC`,
+      [req.user.user_id, period]
+    );
+
+    // Цели пользователя
+    const profileResult = await query(
+      'SELECT daily_calories_target, protein_target_g, carbs_target_g, fats_target_g FROM user_profiles WHERE user_id = $1',
+      [req.user.user_id]
+    );
+
+    const targets = profileResult.rows[0] || {};
+
+    const daysData = result.rows.map((row) => ({
+      date: row.date,
+      calories: Math.round(parseFloat(row.calories || 0)),
+      protein: Math.round(parseFloat(row.protein || 0)),
+      carbs: Math.round(parseFloat(row.carbs || 0)),
+      fats: Math.round(parseFloat(row.fats || 0)),
+    }));
+
+    const totals = daysData.reduce(
+      (acc, d) => {
+        acc.calories += d.calories;
+        acc.protein += d.protein;
+        acc.carbs += d.carbs;
+        acc.fats += d.fats;
+        return acc;
+      },
+      { calories: 0, protein: 0, carbs: 0, fats: 0 }
+    );
+
+    const countDays = daysData.length || 1;
+
+    const averages = {
+      calories: Math.round(totals.calories / countDays),
+      protein: Math.round(totals.protein / countDays),
+      carbs: Math.round(totals.carbs / countDays),
+      fats: Math.round(totals.fats / countDays),
+    };
+
+    let daysWithTarget = 0;
+    if (targets.daily_calories_target) {
+      const target = targets.daily_calories_target;
+      daysWithTarget = daysData.filter((d) => d.calories >= target * 0.9 && d.calories <= target * 1.1).length;
+    }
+
+    res.json({
+      days: period,
+      by_day: daysData,
+      averages,
+      totals,
+      targets: {
+        calories: targets.daily_calories_target,
+        protein: targets.protein_target_g,
+        carbs: targets.carbs_target_g,
+        fats: targets.fats_target_g,
+      },
+      days_with_target: daysWithTarget,
+    });
+  } catch (error) {
+    console.error('Get diary stats error:', error);
+    res.status(500).json({ error: 'Ошибка получения статистики дневника' });
+  }
+});
+
+/**
+ * @route   GET /api/nutrition/products/barcode/:barcode
+ * @desc    Получить продукт по штрих-коду
+ * @access  Private
+ */
+router.get('/products/barcode/:barcode', async (req, res) => {
+  try {
+    const { barcode } = req.params;
+
+    const result = await query(
+      'SELECT * FROM products WHERE barcode = $1',
+      [barcode]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Продукт не найден' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Barcode lookup error:', error);
+    res.status(500).json({ error: 'Ошибка поиска по штрих-коду' });
+  }
+});
+
+/**
+ * @route   GET /api/nutrition/products/:id
+ * @desc    Получить продукт по ID
+ * @access  Private
+ */
+router.get('/products/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await query(
+      'SELECT * FROM products WHERE product_id = $1',
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Продукт не найден' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Get product error:', error);
+    res.status(500).json({ error: 'Ошибка получения продукта' });
+  }
+});
+
+/**
+ * @route   POST /api/nutrition/products
+ * @desc    Создать новый продукт
+ * @access  Private
+ */
+router.post('/products', async (req, res) => {
+  try {
+    const {
+      name, brand, barcode, serving_size_g, serving_size_ml,
+      calories_per_100, protein_per_100, carbs_per_100, fats_per_100,
+      fiber_per_100, sugar_per_100, category
+    } = req.body;
+
+    // Валидация
+    if (!name || calories_per_100 === undefined || protein_per_100 === undefined || 
+        carbs_per_100 === undefined || fats_per_100 === undefined) {
+      return res.status(400).json({ error: 'Название и основные нутриенты обязательны' });
+    }
+
+    const result = await query(
+      `INSERT INTO products (
+        name, brand, barcode, serving_size_g, serving_size_ml,
+        calories_per_100, protein_per_100, carbs_per_100, fats_per_100,
+        fiber_per_100, sugar_per_100, category, created_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      RETURNING *`,
+      [name, brand, barcode, serving_size_g, serving_size_ml,
+       calories_per_100, protein_per_100, carbs_per_100, fats_per_100,
+       fiber_per_100, sugar_per_100, category, req.user.user_id]
+    );
+
+    res.status(201).json({
+      message: 'Продукт создан',
+      product: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Create product error:', error);
+    if (error.code === '23505') { // Unique violation
+      return res.status(409).json({ error: 'Продукт с таким штрих-кодом уже существует' });
+    }
+    res.status(500).json({ error: 'Ошибка создания продукта' });
+  }
+});
+
+/**
+ * @route   GET /api/nutrition/categories
+ * @desc    Получить список категорий продуктов
+ * @access  Private
+ */
+router.get('/categories', async (req, res) => {
+  try {
+    const result = await query(
+      'SELECT DISTINCT category FROM products WHERE category IS NOT NULL ORDER BY category'
+    );
+
+    res.json({
+      categories: result.rows.map(row => row.category)
+    });
+  } catch (error) {
+    console.error('Get categories error:', error);
+    res.status(500).json({ error: 'Ошибка получения категорий' });
+  }
+});
+
+/**
+ * @route   POST /api/nutrition/meals
+ * @desc    Добавить прием пищи
+ * @access  Private
+ */
+router.post('/meals', async (req, res) => {
+  const client = await getClient();
+  
+  try {
+    const { meal_date, meal_type, items, notes } = req.body;
+
+    // Валидация
+    if (!meal_date || !meal_type || !items || items.length === 0) {
+      return res.status(400).json({ error: 'Дата, тип приема пищи и продукты обязательны' });
+    }
+
+    await client.query('BEGIN');
+
+    // Создать прием пищи
+    const mealResult = await client.query(
+      `INSERT INTO meals (user_id, meal_date, meal_type, notes)
+       VALUES ($1, $2, $3, $4)
+       RETURNING meal_id`,
+      [req.user.user_id, meal_date, meal_type, notes]
+    );
+
+    const mealId = mealResult.rows[0].meal_id;
+
+    // Добавить продукты/рецепты
+    let totalCalories = 0, totalProtein = 0, totalCarbs = 0, totalFats = 0;
+
+    for (const item of items) {
+      const { product_id, recipe_id, quantity_g, quantity_ml } = item;
+
+      if (!product_id && !recipe_id) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Укажите product_id или recipe_id' });
+      }
+
+      let calories, protein, carbs, fats;
+
+      if (product_id) {
+        // Получить нутриенты продукта
+        const productResult = await client.query(
+          'SELECT calories_per_100, protein_per_100, carbs_per_100, fats_per_100 FROM products WHERE product_id = $1',
+          [product_id]
+        );
+
+        if (productResult.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: `Продукт ${product_id} не найден` });
+        }
+
+        const product = productResult.rows[0];
+        const multiplier = (quantity_g || quantity_ml) / 100;
+
+        calories = product.calories_per_100 * multiplier;
+        protein = product.protein_per_100 * multiplier;
+        carbs = product.carbs_per_100 * multiplier;
+        fats = product.fats_per_100 * multiplier;
+
+        await client.query(
+          `INSERT INTO meal_items (meal_id, product_id, quantity_g, quantity_ml, calories, protein, carbs, fats)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [mealId, product_id, quantity_g, quantity_ml, calories, protein, carbs, fats]
+        );
+      } else {
+        // Логика для рецептов (упрощенная версия)
+        const recipeResult = await client.query(
+          'SELECT total_calories, total_protein, total_carbs, total_fats, servings FROM recipes WHERE recipe_id = $1',
+          [recipe_id]
+        );
+
+        if (recipeResult.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: `Рецепт ${recipe_id} не найден` });
+        }
+
+        const recipe = recipeResult.rows[0];
+        const servingsMultiplier = (quantity_g || 1) / (recipe.servings || 1);
+
+        calories = recipe.total_calories * servingsMultiplier;
+        protein = recipe.total_protein * servingsMultiplier;
+        carbs = recipe.total_carbs * servingsMultiplier;
+        fats = recipe.total_fats * servingsMultiplier;
+
+        await client.query(
+          `INSERT INTO meal_items (meal_id, recipe_id, quantity_g, calories, protein, carbs, fats)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [mealId, recipe_id, quantity_g, calories, protein, carbs, fats]
+        );
+      }
+
+      totalCalories += calories;
+      totalProtein += protein;
+      totalCarbs += carbs;
+      totalFats += fats;
+    }
+
+    // Обновить итоги приема пищи
+    await client.query(
+      `UPDATE meals SET total_calories = $1, total_protein = $2, total_carbs = $3, total_fats = $4
+       WHERE meal_id = $5`,
+      [totalCalories, totalProtein, totalCarbs, totalFats, mealId]
+    );
+
+    await client.query('COMMIT');
+
+    res.status(201).json({
+      message: 'Прием пищи добавлен',
+      meal_id: mealId,
+      totals: {
+        calories: totalCalories,
+        protein: totalProtein,
+        carbs: totalCarbs,
+        fats: totalFats
+      }
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Create meal error:', error);
+    res.status(500).json({ error: 'Ошибка создания приема пищи' });
+  } finally {
+    client.release();
+  }
+});
+
+/**
+ * @route   PUT /api/nutrition/meals/:id
+ * @desc    Обновить прием пищи (полностью заменить состав)
+ * @access  Private
+ */
+router.put('/meals/:id', async (req, res) => {
+  const client = await getClient();
+
+  try {
+    const { id } = req.params;
+    const { meal_date, meal_type, items, notes } = req.body;
+
+    if (!meal_date || !meal_type || !items || items.length === 0) {
+      return res.status(400).json({ error: 'Дата, тип приема пищи и продукты обязательны' });
+    }
+
+    await client.query('BEGIN');
+
+    // Проверяем, что прием принадлежит пользователю
+    const existing = await client.query(
+      'SELECT meal_id FROM meals WHERE meal_id = $1 AND user_id = $2',
+      [id, req.user.user_id]
+    );
+
+    if (existing.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Прием пищи не найден' });
+    }
+
+    // Обновляем базовую информацию
+    await client.query(
+      `UPDATE meals 
+       SET meal_date = $1, meal_type = $2, notes = $3 
+       WHERE meal_id = $4`,
+      [meal_date, meal_type, notes, id]
+    );
+
+    // Удаляем старые элементы
+    await client.query('DELETE FROM meal_items WHERE meal_id = $1', [id]);
+
+    let totalCalories = 0, totalProtein = 0, totalCarbs = 0, totalFats = 0;
+
+    for (const item of items) {
+      const { product_id, recipe_id, quantity_g, quantity_ml } = item;
+
+      if (!product_id && !recipe_id) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Укажите product_id или recipe_id' });
+      }
+
+      let calories, protein, carbs, fats;
+
+      if (product_id) {
+        const productResult = await client.query(
+          'SELECT calories_per_100, protein_per_100, carbs_per_100, fats_per_100 FROM products WHERE product_id = $1',
+          [product_id]
+        );
+
+        if (productResult.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: `Продукт ${product_id} не найден` });
+        }
+
+        const product = productResult.rows[0];
+        const multiplier = (quantity_g || quantity_ml) / 100;
+
+        calories = product.calories_per_100 * multiplier;
+        protein = product.protein_per_100 * multiplier;
+        carbs = product.carbs_per_100 * multiplier;
+        fats = product.fats_per_100 * multiplier;
+
+        await client.query(
+          `INSERT INTO meal_items (meal_id, product_id, quantity_g, quantity_ml, calories, protein, carbs, fats)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [id, product_id, quantity_g, quantity_ml, calories, protein, carbs, fats]
+        );
+      } else {
+        const recipeResult = await client.query(
+          'SELECT total_calories, total_protein, total_carbs, total_fats, servings FROM recipes WHERE recipe_id = $1',
+          [recipe_id]
+        );
+
+        if (recipeResult.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: `Рецепт ${recipe_id} не найден` });
+        }
+
+        const recipe = recipeResult.rows[0];
+        const servingsMultiplier = (quantity_g || 1) / (recipe.servings || 1);
+
+        calories = recipe.total_calories * servingsMultiplier;
+        protein = recipe.total_protein * servingsMultiplier;
+        carbs = recipe.total_carbs * servingsMultiplier;
+        fats = recipe.total_fats * servingsMultiplier;
+
+        await client.query(
+          `INSERT INTO meal_items (meal_id, recipe_id, quantity_g, calories, protein, carbs, fats)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [id, recipe_id, quantity_g, calories, protein, carbs, fats]
+        );
+      }
+
+      totalCalories += calories;
+      totalProtein += protein;
+      totalCarbs += carbs;
+      totalFats += fats;
+    }
+
+    await client.query(
+      `UPDATE meals SET total_calories = $1, total_protein = $2, total_carbs = $3, total_fats = $4
+       WHERE meal_id = $5`,
+      [totalCalories, totalProtein, totalCarbs, totalFats, id]
+    );
+
+    await client.query('COMMIT');
+
+    res.json({
+      message: 'Прием пищи обновлен',
+      meal_id: id,
+      totals: {
+        calories: totalCalories,
+        protein: totalProtein,
+        carbs: totalCarbs,
+        fats: totalFats,
+      },
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Update meal error:', error);
+    res.status(500).json({ error: 'Ошибка обновления приема пищи' });
+  } finally {
+    client.release();
+  }
+});
+
+/**
+ * @route   GET /api/nutrition/diary
+ * @desc    Получить дневник питания за день
+ * @access  Private
+ */
+router.get('/diary', async (req, res) => {
+  try {
+    const { date } = req.query;
+
+    if (!date) {
+      return res.status(400).json({ error: 'Параметр date обязателен (YYYY-MM-DD)' });
+    }
+
+    // Получить все приемы пищи за день
+    const mealsResult = await query(
+      `SELECT m.meal_id, m.meal_type, m.total_calories, m.total_protein, 
+              m.total_carbs, m.total_fats, m.notes, m.created_at
+       FROM meals m
+       WHERE m.user_id = $1 AND m.meal_date = $2
+       ORDER BY 
+         CASE m.meal_type
+           WHEN 'breakfast' THEN 1
+           WHEN 'lunch' THEN 2
+           WHEN 'dinner' THEN 3
+           WHEN 'snack' THEN 4
+         END`,
+      [req.user.user_id, date]
+    );
+
+    // Для каждого приема получить продукты
+    const meals = [];
+    let dailyTotals = { calories: 0, protein: 0, carbs: 0, fats: 0 };
+
+    for (const meal of mealsResult.rows) {
+      const itemsResult = await query(
+        `SELECT mi.*, 
+                p.name as product_name, p.brand, 
+                r.name as recipe_name
+         FROM meal_items mi
+         LEFT JOIN products p ON mi.product_id = p.product_id
+         LEFT JOIN recipes r ON mi.recipe_id = r.recipe_id
+         WHERE mi.meal_id = $1`,
+        [meal.meal_id]
+      );
+
+      meals.push({
+        ...meal,
+        items: itemsResult.rows
+      });
+
+      dailyTotals.calories += parseFloat(meal.total_calories || 0);
+      dailyTotals.protein += parseFloat(meal.total_protein || 0);
+      dailyTotals.carbs += parseFloat(meal.total_carbs || 0);
+      dailyTotals.fats += parseFloat(meal.total_fats || 0);
+    }
+
+    // Получить целевые значения пользователя
+    const profileResult = await query(
+      'SELECT daily_calories_target, protein_target_g, carbs_target_g, fats_target_g FROM user_profiles WHERE user_id = $1',
+      [req.user.user_id]
+    );
+
+    const targets = profileResult.rows[0] || {};
+
+    res.json({
+      date,
+      meals,
+      totals: {
+        calories: Math.round(dailyTotals.calories),
+        protein: Math.round(dailyTotals.protein),
+        carbs: Math.round(dailyTotals.carbs),
+        fats: Math.round(dailyTotals.fats)
+      },
+      targets: {
+        calories: targets.daily_calories_target,
+        protein: targets.protein_target_g,
+        carbs: targets.carbs_target_g,
+        fats: targets.fats_target_g
+      },
+      remaining: {
+        calories: (targets.daily_calories_target || 0) - Math.round(dailyTotals.calories),
+        protein: (targets.protein_target_g || 0) - Math.round(dailyTotals.protein),
+        carbs: (targets.carbs_target_g || 0) - Math.round(dailyTotals.carbs),
+        fats: (targets.fats_target_g || 0) - Math.round(dailyTotals.fats)
+      }
+    });
+  } catch (error) {
+    console.error('Get diary error:', error);
+    res.status(500).json({ error: 'Ошибка получения дневника' });
+  }
+});
+
+/**
+ * @route   DELETE /api/nutrition/meals/:id
+ * @desc    Удалить прием пищи
+ * @access  Private
+ */
+router.delete('/meals/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await query(
+      'DELETE FROM meals WHERE meal_id = $1 AND user_id = $2 RETURNING meal_id',
+      [id, req.user.user_id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Прием пищи не найден' });
+    }
+
+    res.json({ message: 'Прием пищи удален' });
+  } catch (error) {
+    console.error('Delete meal error:', error);
+    res.status(500).json({ error: 'Ошибка удаления приема пищи' });
+  }
+});
+
+module.exports = router;
