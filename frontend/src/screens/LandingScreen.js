@@ -1,280 +1,473 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Platform, ScrollView } from 'react-native';
-import { Button } from 'react-native-paper';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
-import { aiAPI } from '../services/api';
+import React, { useRef, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Platform,
+  Animated as RNAnimated,
+  Dimensions,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import AnimatedCard from '../components/AnimatedCard';
+import GradientButton from '../components/GradientButton';
+import { colors } from '../theme/colors';
+
+const { width } = Dimensions.get('window');
 
 export default function LandingScreen({ navigation }) {
-  const fade = useRef(new Animated.Value(0)).current;
-  const slide = useRef(new Animated.Value(24)).current;
-  const [demoMeal, setDemoMeal] = useState(null);
-  const [demoWorkout, setDemoWorkout] = useState(null);
-  const [loadingDemo, setLoadingDemo] = useState(false);
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const cardScales = [useRef(new Animated.Value(1)).current, useRef(new Animated.Value(1)).current, useRef(new Animated.Value(1)).current];
-  const [isAuthed, setIsAuthed] = useState(false);
+  const fadeAnim = useRef(new RNAnimated.Value(0)).current;
+  const slideAnim = useRef(new RNAnimated.Value(50)).current;
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fade, { toValue: 1, duration: 550, useNativeDriver: true }),
-      Animated.timing(slide, { toValue: 0, duration: 550, useNativeDriver: true }),
+    RNAnimated.parallel([
+      RNAnimated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+      }),
+      RNAnimated.spring(slideAnim, {
+        toValue: 0,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }),
     ]).start();
-  }, [fade, slide]);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const token = await AsyncStorage.getItem('token');
-        setIsAuthed(!!token);
-      } catch {}
-    })();
   }, []);
 
-  const onHover = (idx, enter) => {
-    if (Platform.OS === 'web') {
-      Animated.spring(cardScales[idx], { toValue: enter ? 1.02 : 1, useNativeDriver: true, friction: 8 }).start();
-    }
+  const animatedStyle = {
+    opacity: fadeAnim,
+    transform: [{ translateY: slideAnim }],
   };
 
+  const features = [
+    {
+      icon: '🤖',
+      title: 'AI-Помощник',
+      description: 'Персональный фитнес-ассистент с искусственным интеллектом. Получайте индивидуальные рекомендации по питанию и тренировкам 24/7.',
+      gradient: ['#667EEA', '#764BA2'],
+      highlight: true,
+    },
+    {
+      icon: '🍽️',
+      title: 'Умное питание',
+      description: 'Отслеживание калорий и БЖУ с базой продуктов РФ. Автоматический расчёт и анализ вашего рациона.',
+      gradient: ['#FF6B6B', '#FF8E53'],
+    },
+    {
+      icon: '🏋️',
+      title: 'Тренировки',
+      description: 'Персональные планы тренировок, библиотека упражнений и отслеживание прогресса.',
+      gradient: ['#4ECDC4', '#44A08D'],
+    },
+    {
+      icon: '📊',
+      title: 'Аналитика',
+      description: 'Детальная статистика, графики прогресса и анализ достижений.',
+      gradient: ['#F093FB', '#F5576C'],
+    },
+  ];
+
+  const stats = [
+    { value: '10K+', label: 'Пользователей' },
+    { value: '50K+', label: 'Тренировок' },
+    { value: '100K+', label: 'Рационов' },
+    { value: '24/7', label: 'AI-поддержка' },
+  ];
+
   return (
-    <Animated.ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.cc}
-      scrollEventThrottle={16}
-      onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
-    >
-      {/* Header */}
-      <Animated.View pointerEvents="box-none" style={[styles.header, {
-        backgroundColor: scrollY.interpolate({ inputRange: [0, 60], outputRange: ['rgba(2,6,23,0)', 'rgba(2,6,23,0.7)'], extrapolate: 'clamp' }),
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(148,163,184,0.15)'
-      }]}>
-        <Text style={styles.brand}>FitPilot</Text>
-        <View style={styles.nav}>
-          <TouchableOpacity onPress={() => navigation.navigate('AI')}><Text style={styles.navLink}>AI</Text></TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('Nutrition')}><Text style={styles.navLink}>Питание</Text></TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('Workouts')}><Text style={styles.navLink}>Тренировки</Text></TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('Profile')}><Text style={styles.navLink}>Профиль</Text></TouchableOpacity>
-        </View>
-      </Animated.View>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      {/* Hero Section */}
+      <RNAnimated.View style={[styles.heroSection, animatedStyle]}>
+        <LinearGradient
+          colors={['#667EEA', '#764BA2', '#F093FB']}
+          style={styles.heroGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <View style={styles.heroContent}>
+            <Text style={styles.heroBadge}>✨ С Искусственным Интеллектом</Text>
+            <Text style={styles.heroTitle}>
+              FitPilot
+            </Text>
+            <Text style={styles.heroSubtitle}>
+              Персональный фитнес-помощник с AI. Достигайте своих целей быстрее с умным планированием питания и тренировок.
+            </Text>
+            <View style={styles.heroButtons}>
+              <GradientButton
+                title="Начать бесплатно"
+                onPress={() => navigation.navigate('Register')}
+                variant="primary"
+                style={styles.heroButton}
+              />
+              <TouchableOpacity
+                style={styles.heroButtonSecondary}
+                onPress={() => navigation.navigate('Login')}
+              >
+                <Text style={styles.heroButtonSecondaryText}>Войти</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </LinearGradient>
+      </RNAnimated.View>
 
-      {/* Hero */}
-      <Animated.View style={[styles.hero, { opacity: fade, transform: [{ translateY: slide }] }] }>
-        <View style={styles.gradientBlob} pointerEvents="none" />
-        <Text style={styles.logo}>Система здоровья нового уровня</Text>
-        <Text style={styles.subtitle}>Питайся осознанно, тренируйся эффективно, получай советы от AI</Text>
-        <View style={styles.heroActions}>
-          <Button
-            mode="contained"
-            icon="sparkles"
-            onPress={() => navigation.navigate('AI')}
-            style={{ borderRadius: 12 }}
-            contentStyle={{ paddingVertical: 6 }}
+      {/* AI Highlight Section */}
+      <View style={styles.aiSection}>
+        <AnimatedCard index={0} style={styles.aiCard}>
+          <LinearGradient
+            colors={['#667EEA', '#764BA2']}
+            style={styles.aiGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
           >
-            Открыть AI‑ассистента
-          </Button>
-          {!isAuthed && (
-            <Button
-              mode="outlined"
-              onPress={() => navigation.navigate('Login')}
-              style={{ borderRadius: 12, borderWidth: 1 }}
-              textColor="#E5E7EB"
-              contentStyle={{ paddingVertical: 6 }}
+            <View style={styles.aiContent}>
+              <Text style={styles.aiIcon}>🤖</Text>
+              <Text style={styles.aiTitle}>AI-Помощник - Наша Главная Фишка</Text>
+              <Text style={styles.aiDescription}>
+                FitPilot использует передовые технологии искусственного интеллекта для создания персональных планов питания и тренировок. 
+                Наш AI анализирует ваши данные, цели и прогресс, чтобы давать максимально точные рекомендации.
+              </Text>
+              <View style={styles.aiFeatures}>
+                <View style={styles.aiFeatureItem}>
+                  <Text style={styles.aiFeatureIcon}>✓</Text>
+                  <Text style={styles.aiFeatureText}>Персональные рационы питания</Text>
+                </View>
+                <View style={styles.aiFeatureItem}>
+                  <Text style={styles.aiFeatureIcon}>✓</Text>
+                  <Text style={styles.aiFeatureText}>Индивидуальные планы тренировок</Text>
+                </View>
+                <View style={styles.aiFeatureItem}>
+                  <Text style={styles.aiFeatureIcon}>✓</Text>
+                  <Text style={styles.aiFeatureText}>Анализ прогресса и рекомендации</Text>
+                </View>
+                <View style={styles.aiFeatureItem}>
+                  <Text style={styles.aiFeatureIcon}>✓</Text>
+                  <Text style={styles.aiFeatureText}>Круглосуточная поддержка</Text>
+                </View>
+              </View>
+              <GradientButton
+                title="Попробовать AI-помощника"
+                onPress={() => navigation.navigate('Register')}
+                variant="primary"
+                style={styles.aiButton}
+              />
+            </View>
+          </LinearGradient>
+        </AnimatedCard>
+      </View>
+
+      {/* Features Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Возможности</Text>
+        <Text style={styles.sectionSubtitle}>
+          Все инструменты для достижения ваших фитнес-целей
+        </Text>
+        <View style={styles.featuresGrid}>
+          {features.map((feature, index) => (
+            <AnimatedCard
+              key={index}
+              index={index + 1}
+              style={[
+                styles.featureCard,
+                feature.highlight && styles.featureCardHighlight,
+              ]}
             >
-              Войти
-            </Button>
-          )}
-        </View>
-      </Animated.View>
-
-      {/* Feature cards */}
-      <View style={styles.cardsRow}>
-        <Animated.View style={[styles.card, { transform: [{ scale: cardScales[0] }] }]} onMouseEnter={() => onHover(0, true)} onMouseLeave={() => onHover(0, false)}>
-          <TouchableOpacity onPress={() => navigation.navigate('AI')}>
-          <Ionicons name="chatbubbles-outline" size={24} color="#A5B4FC" />
-          <Text style={styles.cardTitle}>AI‑ассистент</Text>
-          <Text style={styles.cardText}>Персональные советы, генерация рационов и программ с учётом целей</Text>
-          </TouchableOpacity>
-        </Animated.View>
-        <Animated.View style={[styles.card, { transform: [{ scale: cardScales[1] }] }]} onMouseEnter={() => onHover(1, true)} onMouseLeave={() => onHover(1, false)}>
-          <TouchableOpacity onPress={() => navigation.navigate('Nutrition')}>
-          <Ionicons name="nutrition-outline" size={24} color="#34D399" />
-          <Text style={styles.cardTitle}>Питание</Text>
-          <Text style={styles.cardText}>Дневник, БЖУ, цели, быстрые порции и сканер штрих‑кодов</Text>
-          </TouchableOpacity>
-        </Animated.View>
-        <Animated.View style={[styles.card, { transform: [{ scale: cardScales[2] }] }]} onMouseEnter={() => onHover(2, true)} onMouseLeave={() => onHover(2, false)}>
-          <TouchableOpacity onPress={() => navigation.navigate('Workouts')}>
-          <Ionicons name="barbell-outline" size={24} color="#F59E0B" />
-          <Text style={styles.cardTitle}>Тренировки</Text>
-          <Text style={styles.cardText}>Планы, подходы, прогресс. Добавление AI‑программы в 1 клик</Text>
-          </TouchableOpacity>
-        </Animated.View>
-      </View>
-
-      {/* Highlights */}
-      <View style={styles.features}>
-        <View style={styles.featureItem}>
-          <Ionicons name="time-outline" size={22} color="#93C5FD" />
-          <Text style={styles.featureText}>Быстрый старт: готовые экраны и API под демонстрацию</Text>
-        </View>
-        <View style={styles.featureItem}>
-          <Ionicons name="shield-checkmark-outline" size={22} color="#6EE7B7" />
-          <Text style={styles.featureText}>Безопасный backend: авторизация JWT, CORS, rate‑limit</Text>
-        </View>
-        <View style={styles.featureItem}>
-          <Ionicons name="sparkles-outline" size={22} color="#FDE047" />
-          <Text style={styles.featureText}>AI интеграция: OpenAI‑совместимый адаптер + rule‑based fallback</Text>
+              <LinearGradient
+                colors={feature.gradient}
+                style={styles.featureGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Text style={styles.featureIcon}>{feature.icon}</Text>
+                <Text style={styles.featureTitle}>{feature.title}</Text>
+                <Text style={styles.featureDescription}>{feature.description}</Text>
+              </LinearGradient>
+            </AnimatedCard>
+          ))}
         </View>
       </View>
 
-      {/* Demo blocks */}
-      <Animated.View style={[styles.demoRow, { opacity: scrollY.interpolate({ inputRange: [0, 200, 400], outputRange: [0, 0.5, 1], extrapolate: 'clamp' }) }]}>
-        <View style={styles.demoCard}>
-          <View style={styles.demoHeader}>
-            <Ionicons name="restaurant-outline" size={20} color="#A5B4FC" />
-            <Text style={styles.demoTitle}>Пример рациона</Text>
-            <TouchableOpacity style={styles.demoBtn} disabled={loadingDemo} onPress={async () => {
-              try { setLoadingDemo(true); const res = await aiAPI.mealplan(4); setDemoMeal(res.data); }
-              finally { setLoadingDemo(false); }
-            }}>
-              <Text style={styles.demoBtnText}>{loadingDemo ? '...' : 'Сгенерировать'}</Text>
-            </TouchableOpacity>
+      {/* Stats Section */}
+      <View style={styles.statsSection}>
+        <LinearGradient
+          colors={['#1E293B', '#334155']}
+          style={styles.statsGradient}
+        >
+          <Text style={styles.statsTitle}>FitPilot в цифрах</Text>
+          <View style={styles.statsGrid}>
+            {stats.map((stat, index) => (
+              <View key={index} style={styles.statItem}>
+                <Text style={styles.statValue}>{stat.value}</Text>
+                <Text style={styles.statLabel}>{stat.label}</Text>
+              </View>
+            ))}
           </View>
-          {demoMeal && (
-            <View style={styles.demoBody}>
-              <Text style={styles.demoMeta}>Цель: {demoMeal.target_calories} ккал</Text>
-              {(demoMeal.plan||[]).slice(0,3).map((m, idx) => (
-                <View key={idx} style={styles.demoItem}>
-                  <Text style={styles.demoItemTitle}>{idx+1}. {m.title}</Text>
-                  <Text style={styles.demoItemText}>{m.total_calories} ккал • {(m.items||[])[0]?.name || ''}</Text>
-                </View>
-              ))}
-              <TouchableOpacity style={styles.linkBtn} onPress={() => navigation.navigate('AI', { initialMessage: 'Сгенерируй рацион на день' })}>
-                <Text style={styles.linkBtnText}>Открыть AI для полного плана →</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.demoCard}>
-          <View style={styles.demoHeader}>
-            <Ionicons name="barbell-outline" size={20} color="#F59E0B" />
-            <Text style={styles.demoTitle}>Пример тренировки</Text>
-            <TouchableOpacity style={styles.demoBtn} disabled={loadingDemo} onPress={async () => {
-              try { setLoadingDemo(true); const res = await aiAPI.workout({ location: 'gym', duration_min: 45 }); setDemoWorkout(res.data); }
-              finally { setLoadingDemo(false); }
-            }}>
-              <Text style={styles.demoBtnText}>{loadingDemo ? '...' : 'Сгенерировать'}</Text>
-            </TouchableOpacity>
-          </View>
-          {demoWorkout && (
-            <View style={styles.demoBody}>
-              <Text style={styles.demoMeta}>Дата: {demoWorkout.date}</Text>
-              {(demoWorkout.sets||[]).slice(0,4).map((s, idx) => (
-                <View key={idx} style={styles.demoItem}>
-                  <Text style={styles.demoItemTitle}>{s.exercise?.name || 'Упражнение'}</Text>
-                  <Text style={styles.demoItemText}>Сет {s.set_number} • Повт: {s.reps ?? '-'} {s.weight_kg ? `• Вес: ${s.weight_kg} кг` : ''}</Text>
-                </View>
-              ))}
-              <TouchableOpacity style={styles.linkBtn} onPress={() => navigation.navigate('AI', { initialMessage: 'Сгенерируй силовую тренировку на 45 минут в зале' })}>
-                <Text style={styles.linkBtnText}>Открыть AI для полного плана →</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      </Animated.View>
-
-      {/* Gallery */}
-      <Animated.View style={[styles.gallery, { opacity: scrollY.interpolate({ inputRange: [100, 300, 500], outputRange: [0, 0.6, 1], extrapolate: 'clamp' }) }]}> 
-        <Text style={styles.sectionTitle}>Как это выглядит</Text>
-        <View style={styles.galleryRow}>
-          <View style={styles.galleryCard}>
-            <Ionicons name="reader-outline" size={22} color="#A5B4FC" />
-            <Text style={styles.galleryTitle}>Дневник питания</Text>
-            <Text style={styles.galleryText}>Распределение калорий, БЖУ и приёмы за день</Text>
-          </View>
-          <View style={styles.galleryCard}>
-            <Ionicons name="pulse-outline" size={22} color="#34D399" />
-            <Text style={styles.galleryTitle}>Детали тренировки</Text>
-            <Text style={styles.galleryText}>Подходы, повторы, веса и длительность</Text>
-          </View>
-          <View style={styles.galleryCard}>
-            <Ionicons name="chatbubbles-outline" size={22} color="#F59E0B" />
-            <Text style={styles.galleryTitle}>AI‑чат</Text>
-            <Text style={styles.galleryText}>Рационы и программы в одно нажатие</Text>
-          </View>
-        </View>
-      </Animated.View>
-
-      {/* Why section */}
-      <View style={styles.why}> 
-        <Text style={styles.sectionTitle}>Почему FitPilot</Text>
-        <View style={styles.whyRow}>
-          <View style={styles.whyItem}><Text style={styles.whyBullet}>•</Text><Text style={styles.whyText}>Единая система: питание, тренировки и AI</Text></View>
-          <View style={styles.whyItem}><Text style={styles.whyBullet}>•</Text><Text style={styles.whyText}>Мгновенные рекомендации и генерации планов</Text></View>
-          <View style={styles.whyItem}><Text style={styles.whyBullet}>•</Text><Text style={styles.whyText}>Простота демонстрации на защите: всё работает локально</Text></View>
-        </View>
+        </LinearGradient>
       </View>
 
-      {/* Footer */}
-      <View style={styles.footer}> 
-        <Text style={styles.footerText}>© {new Date().getFullYear()} FitPilot • Курсовой проект</Text>
+      {/* CTA Section */}
+      <View style={styles.ctaSection}>
+        <AnimatedCard index={5} style={styles.ctaCard}>
+          <LinearGradient
+            colors={['#667EEA', '#764BA2']}
+            style={styles.ctaGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Text style={styles.ctaTitle}>Готовы начать?</Text>
+            <Text style={styles.ctaSubtitle}>
+              Присоединяйтесь к тысячам пользователей, которые уже достигли своих целей с FitPilot
+            </Text>
+            <GradientButton
+              title="Создать аккаунт"
+              onPress={() => navigation.navigate('Register')}
+              variant="primary"
+              style={styles.ctaButton}
+            />
+          </LinearGradient>
+        </AnimatedCard>
       </View>
-    </Animated.ScrollView>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0B1220' },
-  cc: { paddingBottom: 40 },
-  header: { position: 'sticky', top: 0, zIndex: 10, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  brand: { color: '#E5E7EB', fontSize: 22, fontWeight: '800' },
-  nav: { flexDirection: 'row', gap: 16 },
-  navLink: { color: '#A5B4FC', fontWeight: '600' },
-  hero: { paddingTop: 56, paddingHorizontal: 20, paddingBottom: 24, position: 'relative', overflow: 'hidden' },
-  gradientBlob: { position: 'absolute', top: -120, right: -120, width: 320, height: 320, borderRadius: 999, backgroundColor: '#1D4ED8', opacity: 0.3 },
-  logo: { color: '#E5E7EB', fontSize: 36, fontWeight: '800', letterSpacing: 0.5 },
-  subtitle: { marginTop: 8, color: '#94A3B8', fontSize: 16 },
-  heroActions: { marginTop: 16, flexDirection: 'row', gap: 10 },
-  cardsRow: { marginTop: 12, paddingHorizontal: 16, gap: 12, flexDirection: 'row', flexWrap: 'wrap' },
-  card: { flexBasis: Platform.OS === 'web' ? '31%' : '100%', backgroundColor: '#0F172A', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: 'rgba(148,163,184,0.25)', minHeight: 126, justifyContent: 'space-between', gap: 8 },
-  cardTitle: { color: '#E5E7EB', fontSize: 18, fontWeight: '700' },
-  cardText: { color: '#94A3B8', marginTop: 8 },
-  actions: { marginTop: 24, paddingHorizontal: 16, flexDirection: 'row', gap: 12, flexWrap: 'wrap' },
-  primary: { backgroundColor: '#4F46E5', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  primaryText: { color: '#fff', fontWeight: '700' },
-  secondary: { backgroundColor: '#111827', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(148,163,184,0.25)' },
-  secondaryText: { color: '#E5E7EB', fontWeight: '700' },
-  note: { color: '#94A3B8', marginTop: 18, paddingHorizontal: 16 },
-  features: { marginTop: 20, paddingHorizontal: 16, gap: 10 },
-  featureItem: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#0F172A', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: 'rgba(148,163,184,0.25)' },
-  featureText: { color: '#CBD5E1' },
-  sectionTitle: { color: '#E5E7EB', fontSize: 18, fontWeight: '800', paddingHorizontal: 16, marginTop: 18, marginBottom: 10 },
-  gallery: { marginTop: 8 },
-  galleryRow: { paddingHorizontal: 16, gap: 12, flexDirection: 'row', flexWrap: 'wrap' },
-  galleryCard: { flexBasis: Platform.OS === 'web' ? '31%' : '100%', backgroundColor: '#0F172A', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: 'rgba(148,163,184,0.25)' },
-  galleryTitle: { color: '#E5E7EB', fontWeight: '700', marginTop: 6 },
-  galleryText: { color: '#94A3B8', marginTop: 4, fontSize: 12 },
-  why: { marginTop: 10 },
-  whyRow: { paddingHorizontal: 16, gap: 8 },
-  whyItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  whyBullet: { color: '#A5B4FC', fontWeight: '900' },
-  whyText: { color: '#CBD5E1' },
-  demoRow: { marginTop: 16, paddingHorizontal: 16, gap: 12, flexDirection: 'row', flexWrap: 'wrap' },
-  demoCard: { flexBasis: Platform.OS === 'web' ? '48%' : '100%', backgroundColor: '#0F172A', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: 'rgba(148,163,184,0.25)' },
-  demoHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  demoTitle: { color: '#E5E7EB', fontWeight: '700', flex: 1 },
-  demoBtn: { backgroundColor: '#1F2937', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(148,163,184,0.35)' },
-  demoBtnText: { color: '#E5E7EB', fontWeight: '700' },
-  demoBody: { marginTop: 10, gap: 6 },
-  demoMeta: { color: '#94A3B8', marginBottom: 4 },
-  demoItem: { backgroundColor: '#0B1220', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: 'rgba(148,163,184,0.2)' },
-  demoItemTitle: { color: '#E5E7EB', fontWeight: '700' },
-  demoItemText: { color: '#94A3B8', marginTop: 2, fontSize: 12 },
-  linkBtn: { marginTop: 8 },
-  linkBtnText: { color: '#A5B4FC', fontWeight: '700' },
-  footer: { marginTop: 24, padding: 16, alignItems: 'center' },
-  footerText: { color: '#64748B' }
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  heroSection: {
+    minHeight: 600,
+  },
+  heroGradient: {
+    flex: 1,
+    paddingTop: 100,
+    paddingBottom: 80,
+    paddingHorizontal: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  heroContent: {
+    alignItems: 'center',
+    maxWidth: 600,
+  },
+  heroBadge: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    marginBottom: 24,
+    fontWeight: '600',
+  },
+  heroTitle: {
+    fontSize: 56,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 24,
+    letterSpacing: -2,
+  },
+  heroSubtitle: {
+    fontSize: 20,
+    color: 'rgba(255, 255, 255, 0.95)',
+    textAlign: 'center',
+    lineHeight: 30,
+    marginBottom: 40,
+  },
+  heroButtons: {
+    flexDirection: 'row',
+    gap: 16,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  heroButton: {
+    minWidth: 180,
+  },
+  heroButtonSecondary: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    minWidth: 180,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroButtonSecondaryText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  aiSection: {
+    padding: 24,
+    marginTop: -40,
+  },
+  aiCard: {
+    marginBottom: 0,
+  },
+  aiGradient: {
+    borderRadius: 24,
+    padding: 32,
+  },
+  aiContent: {
+    alignItems: 'center',
+  },
+  aiIcon: {
+    fontSize: 64,
+    marginBottom: 20,
+  },
+  aiTitle: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 16,
+    letterSpacing: -0.5,
+  },
+  aiDescription: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.95)',
+    textAlign: 'center',
+    lineHeight: 26,
+    marginBottom: 32,
+  },
+  aiFeatures: {
+    width: '100%',
+    marginBottom: 32,
+  },
+  aiFeatureItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingLeft: 8,
+  },
+  aiFeatureIcon: {
+    fontSize: 20,
+    color: '#FFFFFF',
+    marginRight: 12,
+    fontWeight: '700',
+  },
+  aiFeatureText: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.95)',
+    flex: 1,
+  },
+  aiButton: {
+    minWidth: 250,
+  },
+  section: {
+    padding: 24,
+  },
+  sectionTitle: {
+    fontSize: 36,
+    fontWeight: '800',
+    color: colors.textDark,
+    textAlign: 'center',
+    marginBottom: 12,
+    letterSpacing: -1,
+  },
+  sectionSubtitle: {
+    fontSize: 18,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 32,
+    lineHeight: 26,
+  },
+  featuresGrid: {
+    gap: 20,
+  },
+  featureCard: {
+    marginBottom: 0,
+  },
+  featureCardHighlight: {
+    borderWidth: 3,
+    borderColor: colors.primary,
+  },
+  featureGradient: {
+    borderRadius: 20,
+    padding: 28,
+    minHeight: 200,
+  },
+  featureIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  featureTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 12,
+  },
+  featureDescription: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.95)',
+    lineHeight: 24,
+  },
+  statsSection: {
+    marginVertical: 40,
+  },
+  statsGradient: {
+    paddingVertical: 60,
+    paddingHorizontal: 24,
+  },
+  statsTitle: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 40,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-around',
+    gap: 24,
+  },
+  statItem: {
+    alignItems: 'center',
+    minWidth: 120,
+  },
+  statValue: {
+    fontSize: 42,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  statLabel: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  ctaSection: {
+    padding: 24,
+    paddingBottom: 60,
+  },
+  ctaCard: {
+    marginBottom: 0,
+  },
+  ctaGradient: {
+    borderRadius: 24,
+    padding: 48,
+    alignItems: 'center',
+  },
+  ctaTitle: {
+    fontSize: 36,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  ctaSubtitle: {
+    fontSize: 18,
+    color: 'rgba(255, 255, 255, 0.95)',
+    textAlign: 'center',
+    lineHeight: 28,
+    marginBottom: 32,
+  },
+  ctaButton: {
+    minWidth: 250,
+  },
 });

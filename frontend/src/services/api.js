@@ -1,16 +1,13 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Для ПК используйте localhost
-// Для телефона замените на IP вашего компьютера (узнать: ipconfig в терминале)
-// Пример: 'http://192.168.1.100:3001/api'
-const API_URL = 'http://localhost:3001/api';
+import { API_URL } from '../config/api';
 
 const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000, // 30 секунд таймаут
 });
 
 // Добавляем токен к каждому запросу
@@ -23,6 +20,33 @@ api.interceptors.request.use(
     return config;
   },
   (error) => Promise.reject(error)
+);
+
+// Обработка ошибок ответа
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    // Обработка 401 (неавторизован) - очищаем токен
+    if (error.response?.status === 401) {
+      await AsyncStorage.removeItem('token');
+    }
+    
+    // Улучшаем сообщения об ошибках
+    if (error.response) {
+      // Сервер вернул ошибку
+      error.message = error.response.data?.error || error.response.data?.message || 'Ошибка сервера';
+      error.status = error.response.status;
+    } else if (error.request) {
+      // Запрос отправлен, но ответа нет
+      error.message = 'Нет соединения с сервером. Проверьте подключение к интернету.';
+      error.status = 0;
+    } else {
+      // Ошибка при настройке запроса
+      error.message = error.message || 'Ошибка запроса';
+    }
+    
+    return Promise.reject(error);
+  }
 );
 
 export const authAPI = {
@@ -73,6 +97,44 @@ export const usersAPI = {
   
   getMeasurements: () =>
     api.get('/users/measurements'),
+};
+
+export const aiAPI = {
+  /**
+   * Отправка сообщения в AI-чат
+   * @param {string} message - Текст сообщения
+   */
+  chat: (message) =>
+    api.post('/ai/chat', { message }),
+  
+  /**
+   * Генерация рациона питания
+   * @param {number} meals - Количество приёмов пищи (3-6)
+   */
+  mealplan: (meals = 4) =>
+    api.post('/ai/recommendations/mealplan', { meals }),
+  
+  /**
+   * Применение рациона в дневник
+   * @param {Object} plan - План рациона
+   * @param {string} date - Дата (опционально)
+   */
+  applyMealplan: (plan, date) =>
+    api.post('/ai/recommendations/mealplan/apply', { plan, date }),
+  
+  /**
+   * Генерация тренировки
+   * @param {Object} options - { location: 'home'|'gym', duration_min: number }
+   */
+  workout: (options = {}) =>
+    api.post('/ai/recommendations/workout', options),
+  
+  /**
+   * Применение тренировки в дневник
+   * @param {Object} plan - План тренировки
+   */
+  applyWorkout: (plan) =>
+    api.post('/ai/recommendations/workout/apply', { plan }),
 };
 
 export default api;
