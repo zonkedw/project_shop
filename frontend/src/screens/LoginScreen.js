@@ -33,7 +33,7 @@ try {
   console.warn('react-native-reanimated not available');
 }
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { authAPI } from '../services/api';
+import { authAPI, extractData } from '../services/api';
 import GradientButton from '../components/GradientButton';
 import { colors } from '../theme/colors';
 
@@ -116,10 +116,12 @@ export default function LoginScreen({ navigation }) {
     setLoading(true);
     try {
       const response = await authAPI.login(email, password);
-      if (response.data?.token) {
-        await AsyncStorage.setItem('token', response.data.token);
-        if (response.data.user) {
-          await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
+      const data = extractData(response) || response.data || {};
+      
+      if (data?.token) {
+        await AsyncStorage.setItem('token', data.token);
+        if (data.user) {
+          await AsyncStorage.setItem('user', JSON.stringify(data.user));
         }
         navigation.replace('Home');
       } else {

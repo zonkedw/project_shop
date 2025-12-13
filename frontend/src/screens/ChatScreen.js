@@ -12,7 +12,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { aiAPI } from '../services/api';
+import { aiAPI, extractData } from '../services/api';
 import LoadingIndicator from '../components/LoadingIndicator';
 import ErrorMessage from '../components/ErrorMessage';
 import AnimatedCard from '../components/AnimatedCard';
@@ -112,7 +112,8 @@ export default function ChatScreen({ route }) {
 
     try {
       const res = await aiAPI.chat(msg);
-      const reply = res.data?.reply || 'Не удалось получить ответ';
+      const data = extractData(res) || res.data || {};
+      const reply = data.reply || 'Не удалось получить ответ';
 
       // Удаляем сообщение "Думаю..." и добавляем новое с анимацией печатания
       const newMessageId = String(Date.now() + 2);
@@ -160,12 +161,13 @@ export default function ChatScreen({ route }) {
     setSending(true);
     try {
       const res = await aiAPI.applyMealplan(lastPlan, lastPlan.date);
+      const data = extractData(res) || res.data || {};
       setMessages((msgs) => [
         ...msgs,
         {
           id: String(Date.now() + 2),
           role: 'assistant',
-          text: `Готово: ${res.data?.message || 'Рацион добавлен'} на ${res.data?.date || lastPlan.date}`,
+          text: `Готово: ${data.message || res.message || 'Рацион добавлен'} на ${data.date || lastPlan.date}`,
         },
       ]);
       setSnack({ visible: true, text: 'Рацион добавлен в дневник' });
@@ -185,7 +187,7 @@ export default function ChatScreen({ route }) {
     setMessages((m) => [...m, { id: String(Date.now()), role: 'user', text: 'Сгенерируй рацион на день' }]);
     try {
       const res = await aiAPI.mealplan(4);
-      const plan = res.data;
+      const plan = extractData(res) || res.data;
       setLastPlan(plan);
       const lines = [];
       lines.push(`Рацион на ${plan.date}`);
@@ -222,7 +224,7 @@ export default function ChatScreen({ route }) {
     setMessages((m) => [...m, { id: String(Date.now()), role: 'user', text: 'Сгенерируй тренировку' }]);
     try {
       const res = await aiAPI.workout({ location: 'gym', duration_min: 45 });
-      const plan = res.data;
+      const plan = extractData(res) || res.data;
       setLastWorkout(plan);
       const lines = [];
       lines.push(`Тренировка: ${plan.title || 'Силовая'}`);

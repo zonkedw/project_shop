@@ -1,7 +1,17 @@
 const express = require('express');
 const router = express.Router();
+const { celebrate } = require('celebrate');
 const { query, getClient } = require('../config/database');
 const { authMiddleware } = require('../middleware/auth');
+const {
+  getExercisesSchema,
+  exerciseIdSchema,
+  createExerciseSchema,
+  createSessionSchema,
+  getSessionsSchema,
+  sessionIdSchema,
+  getStatsSchema,
+} = require('../validators/workoutsValidators');
 
 // Все роуты требуют авторизации
 router.use(authMiddleware);
@@ -11,7 +21,7 @@ router.use(authMiddleware);
  * @desc    Получить список упражнений
  * @access  Private
  */
-router.get('/exercises', async (req, res) => {
+router.get('/exercises', celebrate(getExercisesSchema), async (req, res, next) => {
   try {
     const { muscle_group, equipment, difficulty, search, limit = 50, offset = 0 } = req.query;
 
@@ -49,14 +59,17 @@ router.get('/exercises', async (req, res) => {
     const result = await query(queryText, params);
 
     res.json({
-      exercises: result.rows,
-      count: result.rows.length,
-      limit: parseInt(limit),
-      offset: parseInt(offset)
+      success: true,
+      data: {
+        exercises: result.rows,
+        count: result.rows.length,
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+      },
     });
   } catch (error) {
     console.error('Get exercises error:', error);
-    res.status(500).json({ error: 'Ошибка получения упражнений' });
+    next(error);
   }
 });
 
@@ -65,7 +78,7 @@ router.get('/exercises', async (req, res) => {
  * @desc    Получить упражнение по ID
  * @access  Private
  */
-router.get('/exercises/:id', async (req, res) => {
+router.get('/exercises/:id', celebrate(exerciseIdSchema), async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -75,13 +88,19 @@ router.get('/exercises/:id', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Упражнение не найдено' });
+      return res.status(404).json({
+        success: false,
+        error: 'Упражнение не найдено',
+      });
     }
 
-    res.json(result.rows[0]);
+    res.json({
+      success: true,
+      data: result.rows[0],
+    });
   } catch (error) {
     console.error('Get exercise error:', error);
-    res.status(500).json({ error: 'Ошибка получения упражнения' });
+    next(error);
   }
 });
 
@@ -90,16 +109,12 @@ router.get('/exercises/:id', async (req, res) => {
  * @desc    Создать упражнение
  * @access  Private
  */
-router.post('/exercises', async (req, res) => {
+router.post('/exercises', celebrate(createExerciseSchema), async (req, res, next) => {
   try {
     const {
       name, description, muscle_group, equipment,
       difficulty, video_url, instructions
     } = req.body;
-
-    if (!name || !muscle_group) {
-      return res.status(400).json({ error: 'Название и группа мышц обязательны' });
-    }
 
     const result = await query(
       `INSERT INTO exercises (name, description, muscle_group, equipment, difficulty, video_url, instructions, created_by)
@@ -109,12 +124,13 @@ router.post('/exercises', async (req, res) => {
     );
 
     res.status(201).json({
+      success: true,
       message: 'Упражнение создано',
-      exercise: result.rows[0]
+      data: result.rows[0],
     });
   } catch (error) {
     console.error('Create exercise error:', error);
-    res.status(500).json({ error: 'Ошибка создания упражнения' });
+    next(error);
   }
 });
 
@@ -123,18 +139,21 @@ router.post('/exercises', async (req, res) => {
  * @desc    Получить список мышечных групп
  * @access  Private
  */
-router.get('/muscle-groups', async (req, res) => {
+router.get('/muscle-groups', async (req, res, next) => {
   try {
     const result = await query(
       'SELECT DISTINCT muscle_group FROM exercises WHERE muscle_group IS NOT NULL ORDER BY muscle_group'
     );
 
     res.json({
-      muscle_groups: result.rows.map(row => row.muscle_group)
+      success: true,
+      data: {
+        muscle_groups: result.rows.map(row => row.muscle_group),
+      },
     });
   } catch (error) {
     console.error('Get muscle groups error:', error);
-    res.status(500).json({ error: 'Ошибка получения групп мышц' });
+    next(error);
   }
 });
 
@@ -143,17 +162,13 @@ router.get('/muscle-groups', async (req, res) => {
  * @desc    Создать тренировочную сессию
  * @access  Private
  */
-router.post('/sessions', async (req, res) => {
+router.post('/sessions', celebrate(createSessionSchema), async (req, res, next) => {
   const client = await getClient();
 
   try {
     const {
       session_date, plan_id, start_time, sets, notes
     } = req.body;
-
-    if (!session_date || !sets || sets.length === 0) {
-      return res.status(400).json({ error: 'Дата и подходы обязательны' });
-    }
 
     await client.query('BEGIN');
 
@@ -178,7 +193,10 @@ router.post('/sessions', async (req, res) => {
 
       if (!exercise_id) {
         await client.query('ROLLBACK');
-        return res.status(400).json({ error: 'exercise_id обязателен для каждого подхода' });
+        return res.status(400).json({
+          success: false,
+          error: 'exercise_id обязателен для каждого подхода',
+        });
       }
 
       await client.query(
@@ -209,15 +227,18 @@ router.post('/sessions', async (req, res) => {
     await client.query('COMMIT');
 
     res.status(201).json({
+      success: true,
       message: 'Тренировка создана',
-      session_id: sessionId,
-      total_volume_kg: totalVolume,
-      duration_min: durationMin
+      data: {
+        session_id: sessionId,
+        total_volume_kg: totalVolume,
+        duration_min: durationMin,
+      },
     });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Create session error:', error);
-    res.status(500).json({ error: 'Ошибка создания тренировки' });
+    next(error);
   } finally {
     client.release();
   }
@@ -228,7 +249,7 @@ router.post('/sessions', async (req, res) => {
  * @desc    Получить историю тренировок
  * @access  Private
  */
-router.get('/sessions', async (req, res) => {
+router.get('/sessions', celebrate(getSessionsSchema), async (req, res, next) => {
   try {
     const { start_date, end_date, limit = 20, offset = 0 } = req.query;
 
@@ -278,14 +299,17 @@ router.get('/sessions', async (req, res) => {
     }
 
     res.json({
-      sessions,
-      count: sessions.length,
-      limit: parseInt(limit),
-      offset: parseInt(offset)
+      success: true,
+      data: {
+        sessions,
+        count: sessions.length,
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+      },
     });
   } catch (error) {
     console.error('Get sessions error:', error);
-    res.status(500).json({ error: 'Ошибка получения истории тренировок' });
+    next(error);
   }
 });
 
@@ -294,7 +318,7 @@ router.get('/sessions', async (req, res) => {
  * @desc    Получить детали тренировочной сессии
  * @access  Private
  */
-router.get('/sessions/:id', async (req, res) => {
+router.get('/sessions/:id', celebrate(sessionIdSchema), async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -304,7 +328,10 @@ router.get('/sessions/:id', async (req, res) => {
     );
 
     if (sessionResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Тренировка не найдена' });
+      return res.status(404).json({
+        success: false,
+        error: 'Тренировка не найдена',
+      });
     }
 
     const session = sessionResult.rows[0];
@@ -320,12 +347,15 @@ router.get('/sessions/:id', async (req, res) => {
     );
 
     res.json({
-      ...session,
-      sets: setsResult.rows
+      success: true,
+      data: {
+        ...session,
+        sets: setsResult.rows,
+      },
     });
   } catch (error) {
     console.error('Get session error:', error);
-    res.status(500).json({ error: 'Ошибка получения тренировки' });
+    next(error);
   }
 });
 
@@ -334,7 +364,7 @@ router.get('/sessions/:id', async (req, res) => {
  * @desc    Удалить тренировочную сессию
  * @access  Private
  */
-router.delete('/sessions/:id', async (req, res) => {
+router.delete('/sessions/:id', celebrate(sessionIdSchema), async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -344,13 +374,19 @@ router.delete('/sessions/:id', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Тренировка не найдена' });
+      return res.status(404).json({
+        success: false,
+        error: 'Тренировка не найдена',
+      });
     }
 
-    res.json({ message: 'Тренировка удалена' });
+    res.json({
+      success: true,
+      message: 'Тренировка удалена',
+    });
   } catch (error) {
     console.error('Delete session error:', error);
-    res.status(500).json({ error: 'Ошибка удаления тренировки' });
+    next(error);
   }
 });
 
@@ -359,7 +395,7 @@ router.delete('/sessions/:id', async (req, res) => {
  * @desc    Получить статистику тренировок
  * @access  Private
  */
-router.get('/stats', async (req, res) => {
+router.get('/stats', celebrate(getStatsSchema), async (req, res, next) => {
   try {
     const { start_date, end_date } = req.query;
 
@@ -416,12 +452,15 @@ router.get('/stats', async (req, res) => {
     const muscleResult = await query(muscleStatsQuery, muscleParams);
 
     res.json({
-      overall: statsResult.rows[0],
-      by_muscle_group: muscleResult.rows
+      success: true,
+      data: {
+        overall: statsResult.rows[0],
+        by_muscle_group: muscleResult.rows,
+      },
     });
   } catch (error) {
     console.error('Get stats error:', error);
-    res.status(500).json({ error: 'Ошибка получения статистики' });
+    next(error);
   }
 });
 

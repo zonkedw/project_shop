@@ -3,20 +3,16 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { query } = require('../config/database');
+const { registerSchema, loginSchema } = require('../validators/authValidators');
 
 /**
  * @route   POST /api/auth/register
  * @desc    Регистрация нового пользователя
  * @access  Public
  */
-router.post('/register', async (req, res) => {
+router.post('/register', registerSchema, async (req, res, next) => {
   try {
     const { email, password, username } = req.body;
-
-    // Валидация
-    if (!email || !password || !username) {
-      return res.status(400).json({ error: 'Все поля обязательны' });
-    }
 
     // Проверка существования пользователя
     const existingUser = await query(
@@ -54,17 +50,20 @@ router.post('/register', async (req, res) => {
     );
 
     res.status(201).json({
+      success: true,
       message: 'Регистрация успешна',
-      token,
-      user: {
-        user_id: user.user_id,
-        email: user.email,
-        username: user.username
+      data: {
+        token,
+        user: {
+          user_id: user.user_id,
+          email: user.email,
+          username: user.username
+        }
       }
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ error: 'Ошибка сервера при регистрации' });
+    next(error);
   }
 });
 
@@ -73,14 +72,9 @@ router.post('/register', async (req, res) => {
  * @desc    Авторизация пользователя
  * @access  Public
  */
-router.post('/login', async (req, res) => {
+router.post('/login', loginSchema, async (req, res, next) => {
   try {
     const { email, password } = req.body;
-
-    // Валидация
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email и пароль обязательны' });
-    }
 
     // Поиск пользователя
     const result = await query(
@@ -119,17 +113,20 @@ router.post('/login', async (req, res) => {
     );
 
     res.json({
+      success: true,
       message: 'Авторизация успешна',
-      token,
-      user: {
-        user_id: user.user_id,
-        email: user.email,
-        username: user.username
+      data: {
+        token,
+        user: {
+          user_id: user.user_id,
+          email: user.email,
+          username: user.username
+        }
       }
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Ошибка сервера при авторизации' });
+    next(error);
   }
 });
 

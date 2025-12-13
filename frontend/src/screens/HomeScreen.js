@@ -8,17 +8,29 @@ import {
   ActivityIndicator,
   Platform,
   Animated as RNAnimated,
-  Dimensions,
   TouchableOpacity,
+  useWindowDimensions,
+  Pressable,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { nutritionAPI, workoutsAPI } from '../services/api';
+import { nutritionAPI, workoutsAPI, extractData } from '../services/api';
 import { useApi } from '../hooks/useApi';
 import ErrorMessage from '../components/ErrorMessage';
 import AnimatedCard from '../components/AnimatedCard';
 import Header from '../components/Header';
-import { colors } from '../theme/colors';
+
+const palette = {
+  bg: '#0B1220',
+  panel: '#0F172A',
+  card: '#111827',
+  border: '#1F2937',
+  primary: '#22D3EE',
+  accent: '#7C3AED',
+  accentGreen: '#22C55E',
+  text: '#E2E8F0',
+  muted: '#94A3B8',
+};
 
 // Безопасный импорт reanimated
 let Reanimated;
@@ -37,8 +49,6 @@ try {
   console.warn('react-native-reanimated not available');
 }
 
-const { width } = Dimensions.get('window');
-
 export default function HomeScreen({ navigation }) {
   const [user, setUser] = useState(null);
   const [todayStats, setTodayStats] = useState({
@@ -48,11 +58,51 @@ export default function HomeScreen({ navigation }) {
   });
   const [refreshing, setRefreshing] = useState(false);
   const { loading, error, execute, reset } = useApi();
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
+  const isDesktop = width >= 1024;
+  const isSmallPhone = width < 420;
+
+  const featureItems = [
+    {
+      tag: 'AI',
+      title: 'AI-ассистент',
+      description: 'Ответы без шаблонов, рационы и тренировки с учётом ваших данных.',
+      accent: palette.primary,
+      screen: 'Chat',
+    },
+    {
+      tag: 'Food',
+      title: 'Питание',
+      description: 'Контроль дефицита/набора, баланс БЖУ, продукты РФ.',
+      accent: palette.accent,
+      screen: 'Nutrition',
+    },
+    {
+      tag: 'Train',
+      title: 'Тренировки',
+      description: 'Дом/зал, оборудование и время учитываются в планах.',
+      accent: palette.accentGreen,
+      screen: 'Workouts',
+    },
+    {
+      tag: 'Stats',
+      title: 'Прогресс',
+      description: 'Динамика веса, калорий и нагрузок без лишнего визуального шума.',
+      accent: '#F59E0B',
+      screen: 'Profile',
+    },
+  ];
+
+  const featureScales = useRef(featureItems.map(() => new RNAnimated.Value(1))).current;
+  const statScales = useRef([new RNAnimated.Value(1), new RNAnimated.Value(1)]).current;
 
   // Анимации
   const heroOpacity = useRef(new RNAnimated.Value(0)).current;
   const heroScale = useRef(new RNAnimated.Value(0.9)).current;
   const scrollY = useRef(new RNAnimated.Value(0)).current;
+  const blocksOpacity = useRef(new RNAnimated.Value(0)).current;
+  const blocksTranslate = useRef(new RNAnimated.Value(20)).current;
 
   useEffect(() => {
     loadUserData();
@@ -71,6 +121,19 @@ export default function HomeScreen({ navigation }) {
         toValue: 1,
         tension: 50,
         friction: 7,
+        useNativeDriver: true,
+      }),
+      RNAnimated.timing(blocksOpacity, {
+        toValue: 1,
+        duration: 800,
+        delay: 150,
+        useNativeDriver: true,
+      }),
+      RNAnimated.spring(blocksTranslate, {
+        toValue: 0,
+        delay: 150,
+        tension: 50,
+        friction: 9,
         useNativeDriver: true,
       }),
     ]).start();
@@ -101,10 +164,13 @@ export default function HomeScreen({ navigation }) {
           workoutsAPI.getSessions({ start_date: today, end_date: today }).catch(() => ({ data: { sessions: [] } })),
         ]);
 
+        const diaryData = extractData(diaryResponse) || diaryResponse.data || {};
+        const sessionsData = extractData(sessionsResponse) || sessionsResponse.data || {};
+
         setTodayStats({
-          calories: diaryResponse.data.totals?.calories || 0,
-          targetCalories: diaryResponse.data.targets?.calories || 2200,
-          workouts: sessionsResponse.data.sessions?.length || 0,
+          calories: diaryData.totals?.calories || 0,
+          targetCalories: diaryData.targets?.calories || 2200,
+          workouts: sessionsData.sessions?.length || 0,
         });
 
         return { success: true };
@@ -154,6 +220,11 @@ export default function HomeScreen({ navigation }) {
     transform: [{ scale: heroScale }],
   };
 
+  const blocksAnimatedStyle = {
+    opacity: blocksOpacity,
+    transform: [{ translateY: blocksTranslate }],
+  };
+
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Доброе утро';
@@ -161,36 +232,14 @@ export default function HomeScreen({ navigation }) {
     return 'Добрый вечер';
   };
 
-  const features = [
-    {
-      icon: '🍽️',
-      title: 'Умное питание',
-      description: 'Отслеживайте калории и БЖУ с AI-помощником',
-      gradient: ['#FF6B6B', '#FF8E53'],
-      screen: 'Nutrition',
-    },
-    {
-      icon: '🏋️',
-      title: 'Персональные тренировки',
-      description: 'Планы тренировок под ваши цели',
-      gradient: ['#4ECDC4', '#44A08D'],
-      screen: 'Workouts',
-    },
-    {
-      icon: '🤖',
-      title: 'AI-ассистент',
-      description: 'Персональные советы 24/7',
-      gradient: ['#667EEA', '#764BA2'],
-      screen: 'Chat',
-    },
-    {
-      icon: '📊',
-      title: 'Аналитика прогресса',
-      description: 'Детальная статистика и графики',
-      gradient: ['#F093FB', '#F5576C'],
-      screen: 'Profile',
-    },
-  ];
+  const pressTo = (val, toValue) => {
+    RNAnimated.spring(val, {
+      toValue,
+      useNativeDriver: true,
+      friction: 6,
+      tension: 120,
+    }).start();
+  };
 
   return (
     <View style={styles.container}>
@@ -200,7 +249,7 @@ export default function HomeScreen({ navigation }) {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.primary} />
         }
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
@@ -210,24 +259,36 @@ export default function HomeScreen({ navigation }) {
         )}
       >
         {/* Hero Section */}
-        <RNAnimated.View style={[styles.heroSection, heroAnimatedStyle]}>
+        <RNAnimated.View style={[
+          styles.heroSection,
+          heroAnimatedStyle,
+          isTablet && styles.heroSectionTablet,
+          isDesktop && styles.heroSectionDesktop
+        ]}>
           <LinearGradient
-            colors={['#667EEA', '#764BA2', '#F093FB']}
+            colors={[palette.bg, palette.panel, palette.bg]}
             style={styles.heroGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >
-            <View style={styles.heroContent}>
+          <View style={[
+            styles.heroContent,
+            isTablet && styles.heroContentTablet,
+            isDesktop && styles.heroContentDesktop
+          ]}>
               <Text style={styles.heroGreeting}>{getGreeting()},</Text>
               <Text style={styles.heroTitle}>
-                {user?.username || 'Пользователь'}! 👋
+                {user?.username || 'спортсмен'}
               </Text>
               <Text style={styles.heroSubtitle}>
-                Достигайте своих фитнес-целей с умным помощником
+                Цифровой тренер и нутриолог. Конкретные планы питания и тренировок под ваши цели.
               </Text>
 
               {/* Quick Stats */}
-              <View style={styles.quickStats}>
+            <View style={[
+              styles.quickStats,
+              (isSmallPhone || isTablet) && styles.quickStatsWrap
+            ]}>
                 <View style={styles.quickStatCard}>
                   <Text style={styles.quickStatValue}>{todayStats.calories}</Text>
                   <Text style={styles.quickStatLabel}>ккал сегодня</Text>
@@ -245,8 +306,8 @@ export default function HomeScreen({ navigation }) {
           </LinearGradient>
         </RNAnimated.View>
 
-        {/* Progress Card */}
-        <View style={styles.content}>
+        {/* Progress Card + sections */}
+        <RNAnimated.View style={[styles.content, blocksAnimatedStyle]}>
           <AnimatedCard index={0} style={styles.progressCard}>
             <View style={styles.progressHeader}>
               <View>
@@ -290,28 +351,39 @@ export default function HomeScreen({ navigation }) {
               Все инструменты для достижения ваших фитнес-целей в одном месте
             </Text>
 
-            <View style={styles.featuresGrid}>
-              {features.map((feature, index) => (
-                <AnimatedCard
+            <View style={[
+              styles.featuresGrid,
+              isTablet && styles.featuresGridTablet,
+              isDesktop && styles.featuresGridDesktop
+            ]}>
+              {featureItems.map((feature, index) => (
+                <Pressable
                   key={feature.screen}
-                  index={index + 1}
+                  onPressIn={() => pressTo(featureScales[index], 0.97)}
+                  onPressOut={() => pressTo(featureScales[index], 1)}
                   onPress={() => navigation.navigate(feature.screen)}
-                  style={styles.featureCardWrapper}
                 >
-                  <LinearGradient
-                    colors={feature.gradient}
-                    style={styles.featureCard}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
+                  <AnimatedCard
+                    index={index + 1}
+                    style={[
+                      styles.featureCardWrapper,
+                      isTablet && styles.featureCardWrapperTablet,
+                      isDesktop && styles.featureCardWrapperDesktop,
+                      { transform: [{ scale: featureScales[index] }] },
+                    ]}
                   >
-                    <Text style={styles.featureIcon}>{feature.icon}</Text>
-                    <Text style={styles.featureTitle}>{feature.title}</Text>
-                    <Text style={styles.featureDescription}>{feature.description}</Text>
-                    <View style={styles.featureArrow}>
-                      <Text style={styles.featureArrowText}>→</Text>
+                    <View style={[styles.featureCard, { borderColor: feature.accent }]}>
+                      <View style={[styles.featureTag, { backgroundColor: `${feature.accent}22` }]}>
+                        <Text style={[styles.featureTagText, { color: feature.accent }]}>{feature.tag}</Text>
+                      </View>
+                      <Text style={styles.featureTitle}>{feature.title}</Text>
+                      <Text style={styles.featureDescription}>{feature.description}</Text>
+                      <View style={[styles.featureArrow, { backgroundColor: `${feature.accent}15` }]}>
+                        <Text style={[styles.featureArrowText, { color: feature.accent }]}>Перейти</Text>
+                      </View>
                     </View>
-                  </LinearGradient>
-                </AnimatedCard>
+                  </AnimatedCard>
+                </Pressable>
               ))}
             </View>
           </View>
@@ -319,39 +391,42 @@ export default function HomeScreen({ navigation }) {
           {/* Stats Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Статистика</Text>
-            <View style={styles.statsRow}>
-              <AnimatedCard index={5} style={styles.statCard}>
-                <LinearGradient
-                  colors={['#FF6B6B', '#FF8E53']}
-                  style={styles.statGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  <Text style={styles.statIcon}>🔥</Text>
-                  <Text style={styles.statValue}>{todayStats.calories}</Text>
-                  <Text style={styles.statLabel}>Калории</Text>
-                </LinearGradient>
-              </AnimatedCard>
+            <View style={[
+              styles.statsRow,
+              isSmallPhone && styles.statsRowStacked
+            ]}>
+              <Pressable
+                onPressIn={() => pressTo(statScales[0], 0.98)}
+                onPressOut={() => pressTo(statScales[0], 1)}
+              >
+                <AnimatedCard index={5} style={[styles.statCard, { transform: [{ scale: statScales[0] }] }]}>
+                  <View style={styles.statGradient}>
+                    <Text style={styles.statLabel}>Калории сегодня</Text>
+                    <Text style={styles.statValue}>{todayStats.calories}</Text>
+                    <Text style={styles.statHint}>Цель {todayStats.targetCalories}</Text>
+                  </View>
+                </AnimatedCard>
+              </Pressable>
 
-              <AnimatedCard index={6} style={styles.statCard}>
-                <LinearGradient
-                  colors={['#4ECDC4', '#44A08D']}
-                  style={styles.statGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  <Text style={styles.statIcon}>💪</Text>
-                  <Text style={styles.statValue}>{todayStats.workouts}</Text>
-                  <Text style={styles.statLabel}>Тренировки</Text>
-                </LinearGradient>
-              </AnimatedCard>
+              <Pressable
+                onPressIn={() => pressTo(statScales[1], 0.98)}
+                onPressOut={() => pressTo(statScales[1], 1)}
+              >
+                <AnimatedCard index={6} style={[styles.statCard, { transform: [{ scale: statScales[1] }] }]}>
+                  <View style={styles.statGradient}>
+                    <Text style={styles.statLabel}>Тренировки</Text>
+                    <Text style={styles.statValue}>{todayStats.workouts}</Text>
+                    <Text style={styles.statHint}>За сегодня</Text>
+                  </View>
+                </AnimatedCard>
+              </Pressable>
             </View>
           </View>
 
           {/* CTA Section */}
           <View style={styles.ctaSection}>
             <LinearGradient
-              colors={['#667EEA', '#764BA2']}
+              colors={[palette.primary, palette.accent]}
               style={styles.ctaCard}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
@@ -374,7 +449,7 @@ export default function HomeScreen({ navigation }) {
               <ErrorMessage message={error} onRetry={loadTodayData} />
             </View>
           )}
-        </View>
+        </RNAnimated.View>
       </ScrollView>
     </View>
   );
@@ -383,7 +458,7 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: palette.bg,
   },
   scrollView: {
     flex: 1,
@@ -393,6 +468,12 @@ const styles = StyleSheet.create({
   },
   heroSection: {
     marginBottom: 24,
+  },
+  heroSectionTablet: {
+    marginBottom: 28,
+  },
+  heroSectionDesktop: {
+    marginBottom: 32,
   },
   heroGradient: {
     paddingTop: 40,
@@ -404,23 +485,31 @@ const styles = StyleSheet.create({
   heroContent: {
     alignItems: 'center',
   },
+  heroContentTablet: {
+    maxWidth: 760,
+    alignSelf: 'center',
+  },
+  heroContentDesktop: {
+    maxWidth: 860,
+    alignSelf: 'center',
+  },
   heroGreeting: {
     fontSize: 18,
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: palette.primary,
     fontWeight: '600',
     marginBottom: 8,
   },
   heroTitle: {
     fontSize: 36,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: palette.text,
     letterSpacing: -1,
     marginBottom: 12,
     textAlign: 'center',
   },
   heroSubtitle: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: palette.muted,
     textAlign: 'center',
     marginBottom: 32,
     lineHeight: 24,
@@ -429,38 +518,42 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     width: '100%',
+    flexWrap: 'wrap',
+  },
+  quickStatsWrap: {
+    justifyContent: 'space-between',
   },
   quickStatCard: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: palette.card,
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: palette.border,
+    minWidth: 160,
   },
   quickStatValue: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: palette.text,
     marginBottom: 4,
   },
   quickStatLabel: {
     fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontWeight: '600',
+    color: palette.muted,
+    fontWeight: '700',
   },
   content: {
     padding: 20,
   },
   progressCard: {
     marginBottom: 32,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: palette.card,
     borderRadius: 24,
     padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
+    borderWidth: 1,
+    borderColor: palette.border,
   },
   progressHeader: {
     flexDirection: 'row',
@@ -471,38 +564,42 @@ const styles = StyleSheet.create({
   progressTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: colors.textDark,
+    color: palette.text,
     marginBottom: 4,
   },
   progressSubtitle: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: palette.muted,
   },
   progressCircle: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: '#0C1627',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: palette.border,
   },
   progressPercent: {
     fontSize: 18,
     fontWeight: '800',
-    color: colors.primary,
+    color: palette.primary,
   },
   progressBarContainer: {
     marginBottom: 20,
   },
   progressBarBg: {
     height: 12,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#0C1627',
     borderRadius: 6,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: palette.border,
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: colors.primary,
+    backgroundColor: palette.primary,
     borderRadius: 6,
   },
   progressFooter: {
@@ -514,17 +611,17 @@ const styles = StyleSheet.create({
   },
   progressItemLabel: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: palette.muted,
     marginBottom: 4,
   },
   progressItemValue: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.textDark,
+    color: palette.text,
   },
   progressDivider: {
     width: 1,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: palette.border,
   },
   section: {
     marginBottom: 32,
@@ -532,52 +629,87 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 28,
     fontWeight: '800',
-    color: colors.textDark,
+    color: palette.text,
     marginBottom: 8,
     letterSpacing: -0.5,
   },
   sectionSubtitle: {
     fontSize: 16,
-    color: colors.textSecondary,
+    color: palette.muted,
     marginBottom: 24,
     lineHeight: 24,
   },
   featuresGrid: {
     gap: 16,
+    flexDirection: 'column',
+  },
+  featuresGridTablet: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
+  featuresGridDesktop: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 18,
   },
   featureCardWrapper: {
     marginBottom: 0,
   },
-  featureCard: {
-    borderRadius: 20,
-    padding: 24,
-    minHeight: 160,
+  featureCardWrapperTablet: {
+    width: '48%',
   },
-  featureIcon: {
-    fontSize: 48,
-    marginBottom: 12,
+  featureCardWrapperDesktop: {
+    width: '48%',
+  },
+  featureCard: {
+    borderRadius: 18,
+    padding: 20,
+    minHeight: 160,
+    borderWidth: 1,
+    borderColor: palette.border,
+    backgroundColor: palette.card,
+  },
+  featureTag: {
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+  },
+  featureTagText: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.6,
   },
   featureTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: palette.text,
     marginBottom: 8,
+    letterSpacing: -0.3,
   },
   featureDescription: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: palette.muted,
     lineHeight: 20,
     marginBottom: 16,
   },
   featureArrow: {
     alignSelf: 'flex-end',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
   },
   featureArrowText: {
-    fontSize: 24,
-    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 13,
+    fontWeight: '800',
   },
   statsRow: {
     flexDirection: 'row',
+    gap: 12,
+  },
+  statsRowStacked: {
+    flexDirection: 'column',
     gap: 12,
   },
   statCard: {
@@ -585,58 +717,66 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   statGradient: {
-    borderRadius: 20,
-    padding: 24,
+    borderRadius: 18,
+    padding: 20,
     alignItems: 'center',
     minHeight: 140,
     justifyContent: 'center',
-  },
-  statIcon: {
-    fontSize: 40,
-    marginBottom: 12,
+    backgroundColor: palette.card,
+    borderWidth: 1,
+    borderColor: palette.border,
   },
   statValue: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: palette.text,
     marginBottom: 4,
   },
   statLabel: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontWeight: '600',
+    fontSize: 13,
+    color: palette.muted,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  statHint: {
+    fontSize: 12,
+    color: palette.muted,
+    marginTop: 6,
   },
   ctaSection: {
     marginBottom: 32,
   },
   ctaCard: {
-    borderRadius: 24,
-    padding: 32,
+    borderRadius: 20,
+    padding: 28,
     alignItems: 'center',
+    backgroundColor: palette.card,
+    borderWidth: 1,
+    borderColor: palette.border,
   },
   ctaTitle: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: palette.text,
     marginBottom: 12,
     textAlign: 'center',
   },
   ctaSubtitle: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: palette.muted,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
     lineHeight: 24,
   },
   ctaButton: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
+    backgroundColor: palette.primary,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 26,
     minWidth: 200,
   },
   ctaButtonText: {
-    color: colors.primary,
+    color: '#0B1220',
     fontSize: 16,
     fontWeight: '700',
     textAlign: 'center',

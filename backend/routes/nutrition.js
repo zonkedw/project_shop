@@ -2,6 +2,14 @@ const express = require('express');
 const router = express.Router();
 const { query, getClient } = require('../config/database');
 const { authMiddleware } = require('../middleware/auth');
+const {
+  searchProductsSchema,
+  getProductByIdSchema,
+  getProductByBarcodeSchema,
+  createProductSchema,
+  addMealSchema,
+  diarySchema,
+} = require('../validators/nutritionValidators');
 
 // Все роуты требуют авторизации
 router.use(authMiddleware);
@@ -11,13 +19,9 @@ router.use(authMiddleware);
  * @desc    Поиск продуктов по названию
  * @access  Private
  */
-router.get('/products/search', async (req, res) => {
+router.get('/products/search', searchProductsSchema, async (req, res, next) => {
   try {
     const { q, category, limit = 20, offset = 0 } = req.query;
-
-    if (!q || q.length < 2) {
-      return res.status(400).json({ error: 'Запрос должен содержать минимум 2 символа' });
-    }
 
     let queryText = `
       SELECT product_id, name, brand, barcode, 
@@ -39,14 +43,17 @@ router.get('/products/search', async (req, res) => {
     const result = await query(queryText, params);
 
     res.json({
-      products: result.rows,
-      count: result.rows.length,
-      limit: parseInt(limit),
-      offset: parseInt(offset)
+      success: true,
+      data: {
+        products: result.rows,
+        count: result.rows.length,
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+      },
     });
   } catch (error) {
     console.error('Product search error:', error);
-    res.status(500).json({ error: 'Ошибка поиска продуктов' });
+    next(error);
   }
 });
 
@@ -55,7 +62,7 @@ router.get('/products/search', async (req, res) => {
  * @desc    Получить продукт по штрих-коду
  * @access  Private
  */
-router.get('/products/barcode/:barcode', async (req, res) => {
+router.get('/products/barcode/:barcode', getProductByBarcodeSchema, async (req, res, next) => {
   try {
     const { barcode } = req.params;
 
@@ -65,13 +72,13 @@ router.get('/products/barcode/:barcode', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Продукт не найден' });
+      return res.status(404).json({ success: false, error: 'Продукт не найден' });
     }
 
-    res.json(result.rows[0]);
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     console.error('Barcode lookup error:', error);
-    res.status(500).json({ error: 'Ошибка поиска по штрих-коду' });
+    next(error);
   }
 });
 
@@ -80,7 +87,7 @@ router.get('/products/barcode/:barcode', async (req, res) => {
  * @desc    Получить продукт по ID
  * @access  Private
  */
-router.get('/products/:id', async (req, res) => {
+router.get('/products/:id', getProductByIdSchema, async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -90,13 +97,13 @@ router.get('/products/:id', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Продукт не найден' });
+      return res.status(404).json({ success: false, error: 'Продукт не найден' });
     }
 
-    res.json(result.rows[0]);
+    res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     console.error('Get product error:', error);
-    res.status(500).json({ error: 'Ошибка получения продукта' });
+    next(error);
   }
 });
 
@@ -113,12 +120,6 @@ router.post('/products', async (req, res) => {
       fiber_per_100, sugar_per_100, category
     } = req.body;
 
-    // Валидация
-    if (!name || calories_per_100 === undefined || protein_per_100 === undefined || 
-        carbs_per_100 === undefined || fats_per_100 === undefined) {
-      return res.status(400).json({ error: 'Название и основные нутриенты обязательны' });
-    }
-
     const result = await query(
       `INSERT INTO products (
         name, brand, barcode, serving_size_g, serving_size_ml,
@@ -132,15 +133,16 @@ router.post('/products', async (req, res) => {
     );
 
     res.status(201).json({
+      success: true,
       message: 'Продукт создан',
-      product: result.rows[0]
+      data: result.rows[0],
     });
   } catch (error) {
     console.error('Create product error:', error);
     if (error.code === '23505') { // Unique violation
-      return res.status(409).json({ error: 'Продукт с таким штрих-кодом уже существует' });
+      return res.status(409).json({ success: false, error: 'Продукт с таким штрих-кодом уже существует' });
     }
-    res.status(500).json({ error: 'Ошибка создания продукта' });
+    res.status(500).json({ success: false, error: 'Ошибка создания продукта' });
   }
 });
 
@@ -169,7 +171,7 @@ router.get('/categories', async (req, res) => {
  * @desc    Добавить прием пищи
  * @access  Private
  */
-router.post('/meals', async (req, res) => {
+router.post('/meals', addMealSchema, async (req, res) => {
   const client = await getClient();
   
   try {
@@ -273,19 +275,22 @@ router.post('/meals', async (req, res) => {
     await client.query('COMMIT');
 
     res.status(201).json({
+      success: true,
       message: 'Прием пищи добавлен',
-      meal_id: mealId,
-      totals: {
-        calories: totalCalories,
-        protein: totalProtein,
-        carbs: totalCarbs,
-        fats: totalFats
+      data: {
+        meal_id: mealId,
+        totals: {
+          calories: totalCalories,
+          protein: totalProtein,
+          carbs: totalCarbs,
+          fats: totalFats
+        }
       }
     });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Create meal error:', error);
-    res.status(500).json({ error: 'Ошибка создания приема пищи' });
+    res.status(500).json({ success: false, error: 'Ошибка создания приема пищи' });
   } finally {
     client.release();
   }
@@ -296,13 +301,9 @@ router.post('/meals', async (req, res) => {
  * @desc    Получить дневник питания за день
  * @access  Private
  */
-router.get('/diary', async (req, res) => {
+router.get('/diary', diarySchema, async (req, res, next) => {
   try {
     const { date } = req.query;
-
-    if (!date) {
-      return res.status(400).json({ error: 'Параметр date обязателен (YYYY-MM-DD)' });
-    }
 
     // Получить все приемы пищи за день
     const mealsResult = await query(
@@ -356,30 +357,33 @@ router.get('/diary', async (req, res) => {
     const targets = profileResult.rows[0] || {};
 
     res.json({
-      date,
-      meals,
-      totals: {
-        calories: Math.round(dailyTotals.calories),
-        protein: Math.round(dailyTotals.protein),
-        carbs: Math.round(dailyTotals.carbs),
-        fats: Math.round(dailyTotals.fats)
-      },
-      targets: {
-        calories: targets.daily_calories_target,
-        protein: targets.protein_target_g,
-        carbs: targets.carbs_target_g,
-        fats: targets.fats_target_g
-      },
-      remaining: {
-        calories: (targets.daily_calories_target || 0) - Math.round(dailyTotals.calories),
-        protein: (targets.protein_target_g || 0) - Math.round(dailyTotals.protein),
-        carbs: (targets.carbs_target_g || 0) - Math.round(dailyTotals.carbs),
-        fats: (targets.fats_target_g || 0) - Math.round(dailyTotals.fats)
+      success: true,
+      data: {
+        date,
+        meals,
+        totals: {
+          calories: Math.round(dailyTotals.calories),
+          protein: Math.round(dailyTotals.protein),
+          carbs: Math.round(dailyTotals.carbs),
+          fats: Math.round(dailyTotals.fats)
+        },
+        targets: {
+          calories: targets.daily_calories_target,
+          protein: targets.protein_target_g,
+          carbs: targets.carbs_target_g,
+          fats: targets.fats_target_g
+        },
+        remaining: {
+          calories: (targets.daily_calories_target || 0) - Math.round(dailyTotals.calories),
+          protein: (targets.protein_target_g || 0) - Math.round(dailyTotals.protein),
+          carbs: (targets.carbs_target_g || 0) - Math.round(dailyTotals.carbs),
+          fats: (targets.fats_target_g || 0) - Math.round(dailyTotals.fats)
+        }
       }
     });
   } catch (error) {
     console.error('Get diary error:', error);
-    res.status(500).json({ error: 'Ошибка получения дневника' });
+    next(error);
   }
 });
 
@@ -388,7 +392,7 @@ router.get('/diary', async (req, res) => {
  * @desc    Удалить прием пищи
  * @access  Private
  */
-router.delete('/meals/:id', async (req, res) => {
+router.delete('/meals/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -398,13 +402,13 @@ router.delete('/meals/:id', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Прием пищи не найден' });
+      return res.status(404).json({ success: false, error: 'Прием пищи не найден' });
     }
 
-    res.json({ message: 'Прием пищи удален' });
+    res.json({ success: true, message: 'Прием пищи удален', data: { meal_id: result.rows[0].meal_id } });
   } catch (error) {
     console.error('Delete meal error:', error);
-    res.status(500).json({ error: 'Ошибка удаления приема пищи' });
+    next(error);
   }
 });
 

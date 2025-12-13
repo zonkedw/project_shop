@@ -1,9 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ActivityIndicator, View } from 'react-native';
 
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
@@ -14,43 +12,24 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import ChatScreen from './src/screens/ChatScreen';
 import AddMealScreen from './src/screens/AddMealScreen';
 import WorkoutBuilderScreen from './src/screens/WorkoutBuilderScreen';
+import WorkoutDetailsScreen from './src/screens/WorkoutDetailsScreen';
 import ExerciseLibraryScreen from './src/screens/ExerciseLibraryScreen';
 import LandingScreen from './src/screens/LandingScreen';
 import AboutScreen from './src/screens/AboutScreen';
 import FeaturesScreen from './src/screens/FeaturesScreen';
+import ProgramsScreen from './src/screens/ProgramsScreen';
+import RecipesScreen from './src/screens/RecipesScreen';
+import ProgramDetailScreen from './src/screens/ProgramDetailScreen';
 
 const Stack = createNativeStackNavigator();
 
 export default function App() {
-  const [initialRoute, setInitialRoute] = useState(null);
-
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    try {
-      const token = await AsyncStorage.getItem('token');
-      setInitialRoute(token ? 'Home' : 'Login');
-    } catch (error) {
-      setInitialRoute('Login');
-    }
-  };
-
-  if (!initialRoute) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#6366F1" />
-      </View>
-    );
-  }
-
   return (
     <>
       <StatusBar style="auto" />
       <NavigationContainer>
         <Stack.Navigator
-          initialRouteName={initialRoute}
+          initialRouteName="Landing"
           screenOptions={{
             headerShown: false,
           }}
@@ -79,6 +58,11 @@ export default function App() {
             name="Workouts" 
             component={WorkoutsScreen}
             options={{ headerShown: true, title: 'Тренировки' }}
+          />
+          <Stack.Screen 
+            name="WorkoutDetails" 
+            component={WorkoutDetailsScreen}
+            options={{ headerShown: true, title: 'Детали тренировки' }}
           />
           <Stack.Screen 
             name="Profile" 
@@ -119,6 +103,21 @@ export default function App() {
             name="Features" 
             component={FeaturesScreen}
             options={{ headerShown: true, title: 'Возможности' }}
+          />
+          <Stack.Screen 
+            name="Programs" 
+            component={ProgramsScreen}
+            options={{ headerShown: true, title: 'Программы' }}
+          />
+          <Stack.Screen 
+            name="Recipes" 
+            component={RecipesScreen}
+            options={{ headerShown: true, title: 'Рецепты' }}
+          />
+          <Stack.Screen 
+            name="ProgramDetail" 
+            component={ProgramDetailScreen}
+            options={{ headerShown: true, title: 'Программа' }}
           />
         </Stack.Navigator>
       </NavigationContainer>

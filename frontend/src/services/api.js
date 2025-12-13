@@ -78,6 +78,9 @@ export const workoutsAPI = {
   getSessions: (filters) =>
     api.get('/workouts/sessions', { params: filters }),
   
+  getSession: (sessionId) =>
+    api.get(`/workouts/sessions/${sessionId}`),
+  
   createSession: (sessionData) =>
     api.post('/workouts/sessions', sessionData),
   
@@ -135,6 +138,21 @@ export const aiAPI = {
    */
   applyWorkout: (plan) =>
     api.post('/ai/recommendations/workout/apply', { plan }),
+};
+
+/**
+ * Helper для извлечения данных из унифицированного формата ответа backend
+ * Backend теперь возвращает { success: true, data: {...}, message?: "..." }
+ * Эта функция извлекает data или возвращает весь response.data для обратной совместимости
+ */
+export const extractData = (response) => {
+  const data = response.data;
+  // Если ответ в новом формате { success, data, ... }
+  if (data && typeof data === 'object' && 'success' in data && 'data' in data) {
+    return data.data;
+  }
+  // Обратная совместимость со старым форматом
+  return data;
 };
 
 export default api;

@@ -455,8 +455,16 @@ ${isModificationRequest ? '⚠️ ВАЖНО: Пользователь прос�
     const reply = aiResult.text || baseline;
     await logAssistantMessage(userId, reply, context, aiResult.tokens);
 
-    if (aiResult.text) return res.json({ reply: aiResult.text, baseline });
-    return res.json({ reply: baseline });
+    if (aiResult.text) {
+      return res.json({
+        success: true,
+        data: { reply: aiResult.text, baseline },
+      });
+    }
+    return res.json({
+      success: true,
+      data: { reply: baseline },
+    });
   } catch (err) {
     console.error('AI chat error:', err);
     // Логируем ошибку для отладки
@@ -465,9 +473,10 @@ ${isModificationRequest ? '⚠️ ВАЖНО: Пользователь прос�
       console.error('Error stack:', err.stack);
     }
     // Возвращаем понятное сообщение об ошибке
-    res.status(500).json({ 
+    res.status(500).json({
+      success: false,
       error: 'Ошибка при обработке запроса AI',
-      message: process.env.NODE_ENV === 'development' ? err.message : 'Внутренняя ошибка сервера'
+      message: process.env.NODE_ENV === 'development' ? err.message : 'Внутренняя ошибка сервера',
     });
   }
 });
@@ -584,7 +593,10 @@ router.post('/recommendations/mealplan', mealplanSchema, async (req, res) => {
           { mealsCount, targetKcal, macros: p },
           aiResult.tokens
         );
-        return res.json(parsed);
+        return res.json({
+          success: true,
+          data: parsed,
+        });
       } catch (_) {
         // fallback
       }
@@ -592,14 +604,20 @@ router.post('/recommendations/mealplan', mealplanSchema, async (req, res) => {
 
     const plan = basePlan();
     return res.json({
-      date,
-      target_calories: targetKcal,
-      target_macros: { protein: p.protein_target_g, carbs: p.carbs_target_g, fats: p.fats_target_g },
-      plan,
+      success: true,
+      data: {
+        date,
+        target_calories: targetKcal,
+        target_macros: { protein: p.protein_target_g, carbs: p.carbs_target_g, fats: p.fats_target_g },
+        plan,
+      },
     });
   } catch (err) {
     console.error('AI mealplan error:', err);
-    res.status(500).json({ error: 'Ошибка генерации рациона' });
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка генерации рациона',
+    });
   }
 });
 
@@ -676,13 +694,20 @@ router.post('/recommendations/mealplan/apply', mealplanApplySchema, async (req, 
     }
 
     await db.query('COMMIT');
-    res.json({ message: 'Рацион добавлен в дневник', date, meals_added: meals.length });
+    res.json({
+      success: true,
+      message: 'Рацион добавлен в дневник',
+      data: { date, meals_added: meals.length },
+    });
   } catch (err) {
     try {
       await db.query('ROLLBACK');
     } catch (_) {}
     console.error('AI apply mealplan error:', err);
-    res.status(500).json({ error: 'Ошибка добавления рациона в дневник' });
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка добавления рациона в дневник',
+    });
   } finally {
     db.release();
   }
@@ -764,7 +789,10 @@ ${location === 'gym' ? 'Используй разнообразное обору
           { location, duration_min, date },
           aiResult.tokens
         );
-        return res.json(parsed);
+        return res.json({
+          success: true,
+          data: parsed,
+        });
       } catch (_) {
         // fallback
       }
@@ -777,10 +805,16 @@ ${location === 'gym' ? 'Используй разнообразное обору
       { exercise: { name: 'Жим гантелей сидя', muscle_group: 'shoulders' }, set_number: 4, reps: 12, weight_kg: 16 },
       { exercise: { name: 'Скручивания', muscle_group: 'abs' }, set_number: 5, reps: 15, weight_kg: 0 },
     ];
-    res.json({ date, title: 'Силовая (база)', sets });
+    res.json({
+      success: true,
+      data: { date, title: 'Силовая (база)', sets },
+    });
   } catch (err) {
     console.error('AI workout error:', err);
-    res.status(500).json({ error: 'Ошибка генерации тренировки' });
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка генерации тренировки',
+    });
   }
 });
 
@@ -831,13 +865,20 @@ router.post('/recommendations/workout/apply', workoutApplySchema, async (req, re
     );
 
     await db.query('COMMIT');
-    res.json({ message: 'Тренировка добавлена', session_id: sessionId, date });
+    res.json({
+      success: true,
+      message: 'Тренировка добавлена',
+      data: { session_id: sessionId, date },
+    });
   } catch (err) {
     try {
       await db.query('ROLLBACK');
     } catch (_) {}
     console.error('AI apply workout error:', err);
-    res.status(500).json({ error: 'Ошибка добавления тренировки' });
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка добавления тренировки',
+    });
   } finally {
     db.release();
   }

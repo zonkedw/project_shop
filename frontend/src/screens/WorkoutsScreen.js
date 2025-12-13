@@ -7,13 +7,54 @@ import {
   RefreshControl,
   TouchableOpacity,
 } from 'react-native';
-import { workoutsAPI } from '../services/api';
+import { workoutsAPI, extractData } from '../services/api';
 import { useApi } from '../hooks/useApi';
 import LoadingIndicator from '../components/LoadingIndicator';
 import ErrorMessage from '../components/ErrorMessage';
 import StatCard from '../components/StatCard';
 import WorkoutCard from '../components/WorkoutCard';
 import { cache } from '../utils/cache';
+import { LinearGradient } from 'expo-linear-gradient';
+import AnimatedCard from '../components/AnimatedCard';
+
+const palette = {
+  bg: '#0B1220',
+  card: '#111827',
+  border: '#1F2937',
+  primary: '#22D3EE',
+  text: '#E2E8F0',
+  muted: '#94A3B8',
+};
+
+const featuredPrograms = [
+  {
+    title: 'Утренняя йога',
+    subtitle: '8 тренировок • 30 мин',
+    tag: 'Йога',
+    desc: 'Мягкие виньясы для подвижности и тонуса. Отлично для старта дня.',
+    level: 'Лёгкий',
+    equipment: 'Коврик',
+    focus: 'Гибкость, осанка, дыхание',
+  },
+  {
+    title: 'Кардио зарядка',
+    subtitle: '10 тренировок • 15 мин',
+    tag: 'Кардио',
+    desc: 'Короткие кардио-сессии без инвентаря для сжигания калорий и поддержания тонуса.',
+    level: 'Лёгкий',
+    equipment: 'Без инвентаря',
+    focus: 'Кардио, координация',
+  },
+  {
+    title: 'HIIT с весом тела',
+    subtitle: '12 тренировок • 20 мин',
+    tag: 'Похудение',
+    desc: 'Интервальные тренировки высокой интенсивности. Минимум времени — максимум результата.',
+    level: 'Средний',
+    equipment: 'Без инвентаря',
+    focus: 'Кардио, жиросжигание',
+  },
+];
 
 export default function WorkoutsScreen({ navigation }) {
   const [sessions, setSessions] = useState([]);
@@ -40,7 +81,8 @@ export default function WorkoutsScreen({ navigation }) {
     await execute(
       async () => {
         const response = await workoutsAPI.getSessions({ limit: 10 });
-        const data = response.data.sessions || [];
+        const responseData = extractData(response);
+        const data = responseData?.sessions || [];
         
         await cache.set(cacheKey, data);
         setSessions(data);
@@ -73,7 +115,8 @@ export default function WorkoutsScreen({ navigation }) {
           start_date: startDate, 
           end_date: endDate 
         });
-        const data = response.data.overall || {};
+        const responseData = extractData(response);
+        const data = responseData?.overall || {};
         
         await cache.set(cacheKey, data);
         setStats(data);
@@ -102,12 +145,20 @@ export default function WorkoutsScreen({ navigation }) {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      <View style={styles.header}>
-        <Text style={styles.title}>Тренировки</Text>
+      <LinearGradient
+        colors={['#0EA5E9', '#2563EB', '#0F172A']}
+        style={styles.hero}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <Text style={styles.heroTitle}>Тренировки</Text>
+        <Text style={styles.heroSubtitle}>
+          Выбирайте готовые планы или собирайте свои. AI подскажет нагрузки.
+        </Text>
         <TouchableOpacity style={styles.startButton} onPress={handleStartWorkout}>
           <Text style={styles.startButtonText}>+ Начать тренировку</Text>
         </TouchableOpacity>
-      </View>
+      </LinearGradient>
 
       {error && (
         <View style={styles.errorContainer}>
@@ -161,6 +212,37 @@ export default function WorkoutsScreen({ navigation }) {
           </View>
         )}
       </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Рекомендуем начать</Text>
+        <View style={styles.programGrid}>
+          {featuredPrograms.map((p, idx) => (
+            <AnimatedCard
+              key={`${p.title}-${idx}`}
+              index={idx}
+              onPress={() => navigation.navigate('ProgramDetail', p)}
+              style={styles.programCard}
+            >
+              <View style={styles.programTag}>
+                <Text style={styles.programTagText}>{p.tag}</Text>
+              </View>
+              <Text style={styles.programTitle}>{p.title}</Text>
+              <Text style={styles.programSubtitle}>{p.subtitle}</Text>
+              <Text style={styles.programDesc}>{p.desc}</Text>
+              <View style={styles.programMetaRow}>
+                <Text style={styles.programMeta}>Уровень: {p.level}</Text>
+                <Text style={styles.programMeta}>Инвентарь: {p.equipment}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.programCta}
+                onPress={() => navigation.navigate('ProgramDetail', p)}
+              >
+                <Text style={styles.programCtaText}>Подробнее</Text>
+              </TouchableOpacity>
+            </AnimatedCard>
+          ))}
+        </View>
+      </View>
     </ScrollView>
   );
 }
@@ -168,32 +250,36 @@ export default function WorkoutsScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: palette.bg,
   },
-  header: {
-    backgroundColor: '#fff',
+  hero: {
     padding: 20,
     paddingTop: 60,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    paddingBottom: 32,
+    gap: 10,
   },
-  title: {
+  heroTitle: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#111',
-    marginBottom: 16,
+    fontWeight: '900',
+    color: '#fff',
+    letterSpacing: -0.3,
+  },
+  heroSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.9)',
+    lineHeight: 20,
   },
   startButton: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: palette.primary,
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 20,
     alignSelf: 'flex-start',
   },
   startButtonText: {
-    color: '#fff',
+    color: '#0B1220',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '800',
   },
   errorContainer: {
     margin: 16,
@@ -208,34 +294,104 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111',
+    fontWeight: '800',
+    color: palette.text,
     marginBottom: 16,
   },
   emptyState: {
-    backgroundColor: '#fff',
+    backgroundColor: palette.card,
     borderRadius: 12,
     padding: 32,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: palette.border,
     borderStyle: 'dashed',
   },
   emptyText: {
     fontSize: 16,
-    color: '#666',
+    color: palette.muted,
     marginBottom: 16,
     textAlign: 'center',
   },
   emptyButton: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: palette.primary,
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 24,
   },
   emptyButtonText: {
-    color: '#fff',
+    color: '#0B1220',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '800',
+  },
+  programGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  programCard: {
+    marginBottom: 0,
+    backgroundColor: palette.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: palette.border,
+    padding: 14,
+    width: '48%',
+    gap: 8,
+  },
+  programTag: {
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: 'rgba(34, 211, 238, 0.12)',
+  },
+  programTagText: {
+    color: palette.primary,
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  programTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: palette.text,
+  },
+  programSubtitle: {
+    fontSize: 13,
+    color: palette.muted,
+  },
+  programDesc: {
+    fontSize: 13,
+    color: palette.muted,
+    lineHeight: 18,
+  },
+  programMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  programMeta: {
+    fontSize: 12,
+    color: palette.muted,
+    backgroundColor: '#0C1627',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: palette.border,
+  },
+  programCta: {
+    marginTop: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: 'rgba(34, 211, 238, 0.14)',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(34, 211, 238, 0.4)',
+  },
+  programCtaText: {
+    color: palette.primary,
+    fontWeight: '800',
+    fontSize: 13,
   },
 });

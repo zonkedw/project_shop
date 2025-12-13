@@ -1,7 +1,15 @@
 const express = require('express');
 const router = express.Router();
+const { celebrate } = require('celebrate');
 const { query, getClient } = require('../config/database');
 const { authMiddleware } = require('../middleware/auth');
+const {
+  recipeIdSchema,
+  getRecipesSchema,
+  createRecipeSchema,
+  updateRecipeSchema,
+  deleteRecipeSchema,
+} = require('../validators/recipesValidators');
 
 router.use(authMiddleware);
 
@@ -10,7 +18,7 @@ router.use(authMiddleware);
  * @desc    Получить рецепты пользователя
  * @access  Private
  */
-router.get('/', async (req, res) => {
+router.get('/', celebrate(getRecipesSchema), async (req, res, next) => {
   try {
     const { limit = 20, offset = 0 } = req.query;
 
@@ -23,12 +31,17 @@ router.get('/', async (req, res) => {
     );
 
     res.json({
-      recipes: result.rows,
-      count: result.rows.length
+      success: true,
+      data: {
+        recipes: result.rows,
+        count: result.rows.length,
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+      },
     });
   } catch (error) {
     console.error('Get recipes error:', error);
-    res.status(500).json({ error: 'Ошибка получения рецептов' });
+    next(error);
   }
 });
 
@@ -37,7 +50,7 @@ router.get('/', async (req, res) => {
  * @desc    Получить рецепт с ингредиентами
  * @access  Private
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id', celebrate(recipeIdSchema), async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -47,7 +60,10 @@ router.get('/:id', async (req, res) => {
     );
 
     if (recipeResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Рецепт не найден' });
+      return res.status(404).json({
+        success: false,
+        error: 'Рецепт не найден',
+      });
     }
 
     const ingredientsResult = await query(
@@ -60,12 +76,15 @@ router.get('/:id', async (req, res) => {
     );
 
     res.json({
-      ...recipeResult.rows[0],
-      ingredients: ingredientsResult.rows
+      success: true,
+      data: {
+        ...recipeResult.rows[0],
+        ingredients: ingredientsResult.rows,
+      },
     });
   } catch (error) {
     console.error('Get recipe error:', error);
-    res.status(500).json({ error: 'Ошибка получения рецепта' });
+    next(error);
   }
 });
 
@@ -74,7 +93,7 @@ router.get('/:id', async (req, res) => {
  * @desc    Создать рецепт
  * @access  Private
  */
-router.post('/', async (req, res) => {
+router.post('/', celebrate(createRecipeSchema), async (req, res, next) => {
   const client = await getClient();
 
   try {
@@ -82,10 +101,6 @@ router.post('/', async (req, res) => {
       name, description, servings, cooking_time_min,
       instructions, ingredients, is_public
     } = req.body;
-
-    if (!name || !ingredients || ingredients.length === 0) {
-      return res.status(400).json({ error: 'Название и ингредиенты обязательны' });
-    }
 
     await client.query('BEGIN');
 
@@ -100,7 +115,10 @@ router.post('/', async (req, res) => {
 
       if (productResult.rows.length === 0) {
         await client.query('ROLLBACK');
-        return res.status(404).json({ error: `Продукт ${ingredient.product_id} не найден` });
+        return res.status(404).json({
+          success: false,
+          error: `Продукт ${ingredient.product_id} не найден`,
+        });
       }
 
       const product = productResult.rows[0];
@@ -141,13 +159,14 @@ router.post('/', async (req, res) => {
     await client.query('COMMIT');
 
     res.status(201).json({
+      success: true,
       message: 'Рецепт создан',
-      recipe: recipeResult.rows[0]
+      data: recipeResult.rows[0],
     });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Create recipe error:', error);
-    res.status(500).json({ error: 'Ошибка создания рецепта' });
+    next(error);
   } finally {
     client.release();
   }
@@ -158,7 +177,7 @@ router.post('/', async (req, res) => {
  * @desc    Обновить рецепт
  * @access  Private
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id', celebrate(updateRecipeSchema), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { name, description, servings, cooking_time_min, instructions, is_public } = req.body;
@@ -177,16 +196,20 @@ router.put('/:id', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Рецепт не найден' });
+      return res.status(404).json({
+        success: false,
+        error: 'Рецепт не найден',
+      });
     }
 
     res.json({
+      success: true,
       message: 'Рецепт обновлен',
-      recipe: result.rows[0]
+      data: result.rows[0],
     });
   } catch (error) {
     console.error('Update recipe error:', error);
-    res.status(500).json({ error: 'Ошибка обновления рецепта' });
+    next(error);
   }
 });
 
@@ -195,7 +218,7 @@ router.put('/:id', async (req, res) => {
  * @desc    Удалить рецепт
  * @access  Private
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', celebrate(deleteRecipeSchema), async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -205,13 +228,19 @@ router.delete('/:id', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Рецепт не найден' });
+      return res.status(404).json({
+        success: false,
+        error: 'Рецепт не найден',
+      });
     }
 
-    res.json({ message: 'Рецепт удален' });
+    res.json({
+      success: true,
+      message: 'Рецепт удален',
+    });
   } catch (error) {
     console.error('Delete recipe error:', error);
-    res.status(500).json({ error: 'Ошибка удаления рецепта' });
+    next(error);
   }
 });
 

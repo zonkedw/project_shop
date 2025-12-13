@@ -70,18 +70,65 @@ npm test
 
 ## Переменные окружения
 
-См. `.env.example` для полного списка переменных.
-
 **Обязательные:**
-- `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
-- `JWT_SECRET`
+- `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` - настройки PostgreSQL
+- `JWT_SECRET` - секретный ключ для JWT токенов
 
-**Опциональные (AI):**
+**Опциональные:**
+- `PORT` - порт сервера (по умолчанию: 3000)
+- `NODE_ENV` - окружение (development/production/test)
+- `CORS_ORIGINS` - разрешённые источники для CORS (через запятую)
+- `JWT_EXPIRES_IN` - срок действия токена (по умолчанию: 7d)
+
+**AI (опционально):**
 - `AI_API_URL` - URL провайдера AI (OpenAI, Anthropic и т.д.)
 - `AI_API_KEY` - API ключ
 - `AI_MODEL` - Модель (по умолчанию: gpt-4o-mini)
 
 Если AI переменные не указаны, используется fallback-логика без внешнего AI.
+
+**Пример `.env` файла:**
+```env
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=fitpilot
+DB_USER=postgres
+DB_PASSWORD=your_password
+
+JWT_SECRET=your_super_secret_jwt_key
+JWT_EXPIRES_IN=7d
+
+PORT=3000
+NODE_ENV=development
+CORS_ORIGINS=http://localhost:19006,http://localhost:3001
+
+AI_API_URL=https://api.openai.com
+AI_API_KEY=your_openai_api_key
+AI_MODEL=gpt-4o-mini
+```
+
+## Валидация и формат ответов
+
+Все API endpoints используют валидацию через `celebrate` и Joi схемы из папки `validators/`.
+
+**Формат успешного ответа:**
+```json
+{
+  "success": true,
+  "data": { ... },
+  "message": "Опциональное сообщение"
+}
+```
+
+**Формат ошибки:**
+```json
+{
+  "success": false,
+  "error": "Описание ошибки"
+}
+```
+
+Ошибки валидации автоматически обрабатываются через `celebrate` middleware.
 
 ## Логирование
 

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../config/database');
 const { authMiddleware } = require('../middleware/auth');
+const { celebrate, Joi, Segments } = require('celebrate');
 
 router.use(authMiddleware);
 
@@ -36,7 +37,21 @@ router.get('/profile', async (req, res) => {
  * @desc    Обновить профиль
  * @access  Private
  */
-router.put('/profile', async (req, res) => {
+router.put('/profile', celebrate({
+  [Segments.BODY]: Joi.object().keys({
+    full_name: Joi.string().max(150).allow(null, ''),
+    date_of_birth: Joi.date().allow(null),
+    gender: Joi.string().valid('male', 'female', 'other', null).allow(null, ''),
+    height_cm: Joi.number().min(50).max(300).allow(null),
+    current_weight_kg: Joi.number().min(20).max(400).allow(null),
+    target_weight_kg: Joi.number().min(20).max(400).allow(null),
+    activity_level: Joi.string().allow(null, ''),
+    goal: Joi.string().allow(null, ''),
+    training_location: Joi.string().allow(null, ''),
+    available_equipment: Joi.string().allow(null, ''),
+    water_target_ml: Joi.number().min(0).max(10000).allow(null),
+  })
+}), async (req, res, next) => {
   try {
     const {
       full_name, date_of_birth, gender, height_cm, current_weight_kg,
@@ -119,12 +134,13 @@ router.put('/profile', async (req, res) => {
     );
 
     res.json({
+      success: true,
       message: 'Профиль обновлен',
-      profile: result.rows[0]
+      data: result.rows[0]
     });
   } catch (error) {
     console.error('Update profile error:', error);
-    res.status(500).json({ error: 'Ошибка обновления профиля' });
+    next(error);
   }
 });
 
@@ -133,7 +149,20 @@ router.put('/profile', async (req, res) => {
  * @desc    Добавить замер тела
  * @access  Private
  */
-router.post('/measurements', async (req, res) => {
+router.post('/measurements', celebrate({
+  [Segments.BODY]: Joi.object().keys({
+    measurement_date: Joi.date().required(),
+    weight_kg: Joi.number().min(20).max(400).required(),
+    body_fat_percent: Joi.number().min(0).max(100).allow(null),
+    muscle_mass_kg: Joi.number().min(0).max(300).allow(null),
+    waist_cm: Joi.number().min(0).max(400).allow(null),
+    chest_cm: Joi.number().min(0).max(400).allow(null),
+    hips_cm: Joi.number().min(0).max(400).allow(null),
+    biceps_cm: Joi.number().min(0).max(200).allow(null),
+    thighs_cm: Joi.number().min(0).max(200).allow(null),
+    notes: Joi.string().max(500).allow(null, ''),
+  })
+}), async (req, res, next) => {
   try {
     const {
       measurement_date, weight_kg, body_fat_percent, muscle_mass_kg,
@@ -163,12 +192,13 @@ router.post('/measurements', async (req, res) => {
     );
 
     res.status(201).json({
+      success: true,
       message: 'Замер добавлен',
-      measurement: result.rows[0]
+      data: result.rows[0]
     });
   } catch (error) {
     console.error('Add measurement error:', error);
-    res.status(500).json({ error: 'Ошибка добавления замера' });
+    next(error);
   }
 });
 
@@ -177,9 +207,13 @@ router.post('/measurements', async (req, res) => {
  * @desc    Получить историю замеров
  * @access  Private
  */
-router.get('/measurements', async (req, res) => {
+router.get('/measurements', celebrate({
+  [Segments.QUERY]: Joi.object().keys({
+    limit: Joi.number().integer().min(1).max(200).default(30),
+  })
+}), async (req, res, next) => {
   try {
-    const { limit = 30 } = req.query;
+    const { limit } = req.query;
 
     const result = await query(
       `SELECT * FROM body_measurements 
@@ -190,12 +224,15 @@ router.get('/measurements', async (req, res) => {
     );
 
     res.json({
-      measurements: result.rows,
-      count: result.rows.length
+      success: true,
+      data: {
+        measurements: result.rows,
+        count: result.rows.length
+      }
     });
   } catch (error) {
     console.error('Get measurements error:', error);
-    res.status(500).json({ error: 'Ошибка получения замеров' });
+    next(error);
   }
 });
 
