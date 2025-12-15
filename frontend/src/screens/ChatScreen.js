@@ -10,20 +10,24 @@ import {
   Platform,
   ActivityIndicator,
   ScrollView,
+  useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { aiAPI, extractData } from '../services/api';
-import LoadingIndicator from '../components/LoadingIndicator';
-import ErrorMessage from '../components/ErrorMessage';
 import AnimatedCard from '../components/AnimatedCard';
-import { colors } from '../theme/colors';
+import { useTheme } from '../hooks/useTheme';
 
 export default function ChatScreen({ route }) {
+  const { theme, isDark } = useTheme();
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
+  const isDesktop = width >= 1024;
+  
   const [messages, setMessages] = useState([
     {
       id: 'sys1',
       role: 'assistant',
-      text: 'Привет! Я AI-ассистент FitPilot. Я могу помочь вам с вопросами о фитнесе, питании и тренировках, а также ответить на любые другие ваши вопросы. Задайте вопрос или выберите действие ниже.',
+      text: 'Привет! 👋 Я AI-ассистент FitPilot. Могу помочь с вопросами о фитнесе, питании, тренировках, а также ответить на любые другие ваши вопросы. Что вас интересует?',
     },
   ]);
   const [input, setInput] = useState('');
@@ -31,9 +35,10 @@ export default function ChatScreen({ route }) {
   const [lastPlan, setLastPlan] = useState(null);
   const [lastWorkout, setLastWorkout] = useState(null);
   const listRef = useRef(null);
-  const [snack, setSnack] = useState({ visible: false, text: '' });
   const typingTimeoutRef = useRef(null);
   const [cursorVisible, setCursorVisible] = useState(true);
+  const [error, setError] = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     scrollToEnd();
@@ -92,12 +97,17 @@ export default function ChatScreen({ route }) {
     typeChar();
   };
 
-  const send = async (text) => {
+  const send = async (text, isRetry = false) => {
     const msg = (text ?? input).trim();
     if (!msg) return;
+    
     setInput('');
+    setError(null);
+    
     const userMsg = { id: String(Date.now()), role: 'user', text: msg };
-    setMessages((m) => [...m, userMsg]);
+    if (!isRetry) {
+      setMessages((m) => [...m, userMsg]);
+    }
     setSending(true);
 
     // Очищаем предыдущий таймер печатания
@@ -106,7 +116,12 @@ export default function ChatScreen({ route }) {
     }
 
     const thinkingId = String(Date.now() + 1);
-    const thinkingMessages = ['Думаю...', 'Анализирую...', 'Обрабатываю запрос...'];
+    const thinkingMessages = [
+      '🤔 Думаю...',
+      '🧠 Анализирую данные...',
+      '✨ Готовлю ответ...',
+      '📊 Обрабатываю информацию...'
+    ];
     const thinkingText = thinkingMessages[Math.floor(Math.random() * thinkingMessages.length)];
     setMessages((m) => [...m, { id: thinkingId, role: 'assistant', text: thinkingText, isLoading: true }]);
 
@@ -114,6 +129,9 @@ export default function ChatScreen({ route }) {
       const res = await aiAPI.chat(msg);
       const data = extractData(res) || res.data || {};
       const reply = data.reply || 'Не удалось получить ответ';
+
+      // Сбрасываем счётчик попыток при успешном ответе
+      setRetryCount(0);
 
       // Удаляем сообщение "Думаю..." и добавляем новое с анимацией печатания
       const newMessageId = String(Date.now() + 2);
@@ -128,7 +146,13 @@ export default function ChatScreen({ route }) {
         typeText(newMessageId, reply, 20); // 20ms на символ для плавности
       }, 100);
     } catch (e) {
-      const errorMsg = e.message || 'Ошибка AI. Попробуйте позже.';
+      console.error('AI Chat Error:', e);
+      
+      const errorMsg = e.response?.status === 429 
+        ? '⚠️ Слишком много запросов. Попробуйте через несколько секунд.'
+        : e.response?.status === 500
+        ? '❌ Ошибка сервера. Попробую ещё раз...'
+        : e.message || '❌ Ошибка AI. Проверьте подключение к интернету.';
 
       setMessages((m) => {
         const filtered = m.filter((msg) => msg.id !== thinkingId);
@@ -140,11 +164,21 @@ export default function ChatScreen({ route }) {
             text: errorMsg,
             isError: true,
             isLoading: false,
+            canRetry: true,
+            retryMessage: msg,
           },
         ];
       });
 
-      setSnack({ visible: true, text: errorMsg });
+      setError(errorMsg);
+      
+      // Автоматический retry при ошибке сервера (максимум 2 попытки)
+      if (e.response?.status === 500 && retryCount < 2) {
+        setRetryCount(prev => prev + 1);
+        setTimeout(() => {
+          send(msg, true);
+        }, 2000); // Повторная попытка через 2 секунды
+      }
     } finally {
       setSending(false);
     }
@@ -306,19 +340,24 @@ export default function ChatScreen({ route }) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: theme.bg }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       {/* AI Header */}
-      <LinearGradient colors={['#667EEA', '#764BA2']} style={styles.header}>
-        <View style={styles.headerContent}>
+      <LinearGradient colors={theme.gradients.primary} style={styles.header}>
+        <View style={[
+          styles.headerContent,
+          isDesktop && styles.headerContentDesktop
+        ]}>
           <View style={styles.aiIconContainer}>
             <Text style={styles.aiIcon}>🤖</Text>
           </View>
           <View style={styles.headerText}>
-            <Text style={styles.headerTitle}>AI-Помощник FitPilot</Text>
-            <Text style={styles.headerSubtitle}>Персональный фитнес-ассистент с искусственным интеллектом</Text>
+            <Text style={styles.headerTitle}>AI-Ассистент FitPilot</Text>
+            <Text style={styles.headerSubtitle}>
+              Ваш умный помощник в фитнесе, питании и не только
+            </Text>
           </View>
         </View>
       </LinearGradient>
@@ -393,16 +432,25 @@ export default function ChatScreen({ route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   header: {
     paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingBottom: 24,
     paddingHorizontal: 20,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  headerContentDesktop: {
+    maxWidth: 900,
+    alignSelf: 'center',
+    width: '100%',
   },
   aiIconContainer: {
     width: 60,
@@ -412,6 +460,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
+    borderWidth: 2.5,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   aiIcon: {
     fontSize: 32,
@@ -421,13 +471,16 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: '800',
+    fontWeight: '900',
     color: '#FFFFFF',
     marginBottom: 4,
+    letterSpacing: -0.4,
   },
   headerSubtitle: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: 'rgba(255, 255, 255, 0.95)',
+    lineHeight: 20,
+    fontWeight: '500',
   },
   messagesList: {
     padding: 20,
@@ -445,59 +498,74 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   aiBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 8,
+    marginRight: 10,
     marginBottom: 4,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   aiBadgeText: {
     color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   messageBubble: {
     maxWidth: '75%',
-    padding: 16,
-    borderRadius: 20,
+    padding: 18,
+    borderRadius: 24,
   },
   userBubble: {
-    backgroundColor: colors.primary,
-    borderBottomRightRadius: 4,
+    backgroundColor: '#6366F1',
+    borderBottomRightRadius: 6,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 6,
   },
   assistantBubble: {
-    backgroundColor: '#FFFFFF',
-    borderBottomLeftRadius: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: 'rgba(31, 32, 71, 0.7)',
+    borderBottomLeftRadius: 6,
+    borderWidth: 1.5,
+    borderColor: 'rgba(99, 102, 241, 0.25)',
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 5,
   },
   errorBubble: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
     borderColor: '#EF4444',
-    borderWidth: 1,
+    borderWidth: 1.5,
   },
   messageText: {
     fontSize: 16,
-    lineHeight: 22,
-    color: colors.textDark,
+    lineHeight: 25,
+    color: '#F8FAFC',
+    fontWeight: '500',
   },
   userBubbleText: {
     color: '#FFFFFF',
+    fontWeight: '600',
   },
   errorText: {
-    color: '#DC2626',
+    color: '#FCA5A5',
+    fontWeight: '600',
   },
   userAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.primary,
-    marginLeft: 8,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#4F46E5',
+    marginLeft: 10,
+    borderWidth: 2,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
   },
   quickActionsContainer: {
     paddingHorizontal: 20,
@@ -509,7 +577,7 @@ const styles = StyleSheet.create({
   quickActionsTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: '#64748B',
     marginBottom: 12,
   },
   quickActionsScroll: {
@@ -531,7 +599,7 @@ const styles = StyleSheet.create({
   quickActionText: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.textDark,
+    color: '#0F172A',
     textAlign: 'center',
   },
   applyContainer: {
@@ -542,7 +610,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#E2E8F0',
   },
   applyButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#6366F1',
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
@@ -555,41 +623,56 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    backgroundColor: 'rgba(31, 32, 71, 0.6)',
+    borderTopWidth: 1.5,
+    borderTopColor: 'rgba(99, 102, 241, 0.25)',
     alignItems: 'flex-end',
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
   },
   input: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    maxHeight: 100,
+    backgroundColor: 'rgba(15, 15, 35, 0.8)',
+    borderRadius: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    maxHeight: 120,
     fontSize: 16,
-    color: colors.textDark,
+    color: '#F8FAFC',
     marginRight: 12,
+    borderWidth: 1.5,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+    fontWeight: '500',
   },
   sendButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primary,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#6366F1',
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   sendButtonDisabled: {
-    opacity: 0.5,
+    opacity: 0.4,
   },
   sendButtonText: {
     color: '#FFFFFF',
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 26,
+    fontWeight: '900',
   },
   typingCursor: {
-    color: colors.primary,
+    color: '#818CF8',
     fontWeight: 'bold',
-    fontSize: 18,
+    fontSize: 20,
   },
 });

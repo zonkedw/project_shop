@@ -1,9 +1,10 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
+  FlatList,
   TouchableOpacity,
   Platform,
   Animated as RNAnimated,
@@ -16,20 +17,22 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AnimatedCard from '../components/AnimatedCard';
 import GradientButton from '../components/GradientButton';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const palette = {
-  bg: '#0B1220',
-  panel: '#0F172A',
-  card: '#111827',
-  border: '#1F2937',
-  primary: '#22D3EE',
-  primarySoft: '#38BDF8',
-  accent: '#7C3AED',
-  text: '#E2E8F0',
-  muted: '#94A3B8',
-};
+import { useTheme } from '../hooks/useTheme';
 
 export default function LandingScreen({ navigation }) {
+  const { theme, isDark } = useTheme();
+  const textPrimary = isDark ? '#F8FAFC' : '#0F172A';
+  const textMuted = isDark ? '#CBD5E1' : '#334155';
+  const palette = { ...theme, text: textPrimary, muted: textMuted }; // фиксируем читаемые цвета
+  const styles = createStyles(palette); // создаём стили с учётом темы
+  
+  const heroGradientColors = isDark ? ['#0D1025', '#4F46E5', '#A855F7'] : ['#EEF2FF', '#E0E7FF', '#C7D2FE'];
+  const devicesGradientColors = isDark ? ['#11142B', '#1E1F3D'] : ['#FFFFFF', '#EEF2FF'];
+  const statsGradientColors = isDark ? ['#0F172A', '#111827'] : ['#FFFFFF', '#F8FAFC'];
+  const ctaGradientColors = isDark
+    ? ['#1C1F3A', '#7C3AED']
+    : ['#4F46E5', '#EC4899'];
+
   const { width } = useWindowDimensions();
   const isSmallPhone = width < 420;
   const isTablet = width >= 768 && width < 1024;
@@ -38,52 +41,14 @@ export default function LandingScreen({ navigation }) {
   const scrollRef = useRef(null);
   const [activeTag, setActiveTag] = useState('Все');
   const [hasToken, setHasToken] = useState(false);
-
-  const features = [
-    {
-      tag: 'AI',
-      title: 'AI-помощник 24/7',
-      description: 'Собирает контекст из целей, дневника и прогресса, выдаёт конкретные планы питания, тренировки и ответы без воды.',
-      accent: '#22D3EE',
-    },
-    {
-      tag: 'Food',
-      title: 'Питание под цель',
-      description: 'Баланс БЖУ, продукты из РФ, готовые рацион-карты и контроль дефицита/набора.',
-      accent: '#7C3AED',
-    },
-    {
-      tag: 'Train',
-      title: 'Тренировки под уровень',
-      description: 'Дом/зал, время и инвентарь учитываются. Подбор упражнений и прогрессий.',
-      accent: '#22C55E',
-    },
-    {
-      tag: 'Data',
-      title: 'Аналитика и прогресс',
-      description: 'Тренды по весу, калориям и нагрузкам. Подсказки, где ускориться.',
-      accent: '#F59E0B',
-    },
-    {
-      tag: 'Recovery',
-      title: 'Восстановление',
-      description: 'Растяжка, сон, дыхание. Подбор лёгких дней и разгрузок.',
-      accent: '#06B6D4',
-    },
-    {
-      tag: 'Coach',
-      title: 'Планы с экспертом',
-      description: 'Готовые сплиты и челленджи на 4–8 недель, проверенные тренерами.',
-      accent: '#EC4899',
-    },
-  ];
-
-  const stats = [
-    { value: '10K+', label: 'Пользователей' },
-    { value: '50K+', label: 'Тренировок' },
-    { value: '100K+', label: 'Рационов' },
-    { value: '24/7', label: 'AI-поддержка' },
-  ];
+  const colorPulse = useRef(new RNAnimated.Value(0)).current;
+  const CARD_WIDTH = 300;
+  const CARD_SPACING = 18;
+  const featurePadding = isLargeDesktop ? 24 : isDesktop ? 16 : isTablet ? 8 : 4;
+  const PROG_CARD_WIDTH = 260;
+  const PROG_SPACING = 12;
+  const programsScrollRef = useRef(null);
+  const [programIndex, setProgramIndex] = useState(0);
 
   const programTags = ['Все', 'Похудение', 'Силовые', 'Йога', 'Здоровье', 'Кардио'];
   const programs = [
@@ -91,7 +56,7 @@ export default function LandingScreen({ navigation }) {
       title: 'Функциональные силовые',
       subtitle: '21 тренировка • 22 мин',
       tag: 'Силовые',
-      desc: 'Силовая выносливость с упором на всё тело. Подходит для зала и дома с гантелями.',
+      desc: 'Силовая выносливость, всё тело. Зал/дом, гантели.',
       level: 'Средний',
       equipment: 'Гантели/эспандер',
       focus: 'Ноги, спина, корпус',
@@ -100,7 +65,7 @@ export default function LandingScreen({ navigation }) {
       title: 'Утренняя йога',
       subtitle: '8 тренировок • 30 мин',
       tag: 'Йога',
-      desc: 'Мягкие виньясы для подвижности и тонуса. Отлично для старта дня.',
+      desc: 'Мягкие виньясы, подвижность и тонус, лучший старт дня.',
       level: 'Лёгкий',
       equipment: 'Коврик',
       focus: 'Гибкость, осанка, дыхание',
@@ -109,7 +74,7 @@ export default function LandingScreen({ navigation }) {
       title: 'Кардио зарядка',
       subtitle: '10 тренировок • 15 мин',
       tag: 'Кардио',
-      desc: 'Короткие кардио-сессии без инвентаря для сжигания калорий и поддержания тонуса.',
+      desc: 'Короткие HIIT/кардио без инвентаря для сжигания калорий.',
       level: 'Лёгкий',
       equipment: 'Без инвентаря',
       focus: 'Кардио, координация',
@@ -118,7 +83,7 @@ export default function LandingScreen({ navigation }) {
       title: 'Растяжка спины',
       subtitle: '6 тренировок • 18 мин',
       tag: 'Здоровье',
-      desc: 'Профилактика зажимов и боли в спине. Дыхательные практики и мягкая мобилизация.',
+      desc: 'Профилактика зажимов, дыхательные практики, мягкая мобилизация.',
       level: 'Лёгкий',
       equipment: 'Коврик',
       focus: 'Подвижность, спина',
@@ -127,11 +92,91 @@ export default function LandingScreen({ navigation }) {
       title: 'HIIT с весом тела',
       subtitle: '12 тренировок • 20 мин',
       tag: 'Похудение',
-      desc: 'Интервальные тренировки высокой интенсивности. Минимум времени — максимум результата.',
+      desc: 'Интервалы высокой интенсивности без инвентаря.',
       level: 'Средний',
       equipment: 'Без инвентаря',
       focus: 'Кардио, жиросжигание',
     },
+  ];
+
+  const filteredPrograms = useMemo(
+    () => programs.filter((p) => activeTag === 'Все' || p.tag === activeTag),
+    [activeTag]
+  );
+
+  useEffect(() => {
+    setProgramIndex(0);
+    programsScrollRef.current?.scrollTo({ x: 0, y: 0, animated: true });
+  }, [activeTag, filteredPrograms.length]);
+
+  const featuresScrollRef = useRef(null);
+  const [featureIndex, setFeatureIndex] = useState(0);
+
+  const features = [
+    {
+      tag: 'AI',
+      title: 'AI-помощник 24/7',
+      description: 'Быстрые ответы, планы питания и тренировки по твоим данным.',
+      accent: '#6366F1',
+      workouts: 'до 20 сек ответ',
+      duration: 'Персонально',
+      level: 'Поддержка 24/7',
+    },
+    {
+      tag: 'Food',
+      title: 'Питание под цель',
+      description: 'Рационы под дефицит/набор, продукты из РФ, контроль БЖУ.',
+      accent: '#A855F7',
+      workouts: 'Рационы',
+      duration: 'до 7 дней',
+      level: 'Баланс БЖУ',
+    },
+    {
+      tag: 'Train',
+      title: 'Тренировки под уровень',
+      description: 'Дом/зал, время и инвентарь учитываются. Подбор прогрессий.',
+      accent: '#22C55E',
+      workouts: '3–5 в неделю',
+      duration: '15–45 мин',
+      level: 'Beginner–Pro',
+    },
+    {
+      tag: 'Data',
+      title: 'Аналитика и прогресс',
+      description: 'Тренды по калориям, весу, нагрузкам. Подсказки, где ускориться.',
+      accent: '#F59E0B',
+      workouts: 'Графики',
+      duration: 'Ежедневно',
+      level: 'Автоподсказки',
+    },
+    {
+      tag: 'Recovery',
+      title: 'Восстановление',
+      description: 'Растяжка, сон, дыхание. Лёгкие дни и разгрузки.',
+      accent: '#3B82F6',
+      workouts: 'До 20 мин',
+      duration: 'Гибкость',
+      level: 'Лёгкие дни',
+    },
+    {
+      tag: 'Coach',
+      title: 'Планы с экспертом',
+      description: 'Челленджи 4–8 недель, сплиты, проверенные тренерами.',
+      accent: '#EC4899',
+      workouts: 'Челлендж',
+      duration: '4–8 недель',
+      level: 'Прогрессия',
+    },
+  ];
+
+  const featureScales = useRef(features.map(() => new RNAnimated.Value(1))).current;
+  const featureListRef = useRef(null);
+
+  const stats = [
+    { value: '10K+', label: 'Пользователей' },
+    { value: '50K+', label: 'Тренировок' },
+    { value: '100K+', label: 'Рационов' },
+    { value: '24/7', label: 'AI-поддержка' },
   ];
 
   const recipes = [
@@ -168,7 +213,6 @@ export default function LandingScreen({ navigation }) {
   const slideAnim = useRef(new RNAnimated.Value(50)).current;
   const blocksOpacity = useRef(new RNAnimated.Value(0)).current;
   const blocksTranslate = useRef(new RNAnimated.Value(20)).current;
-  const featureScales = useRef(features.map(() => new RNAnimated.Value(1))).current;
   const statScales = useRef(stats.map(() => new RNAnimated.Value(1))).current;
 
   useEffect(() => {
@@ -199,12 +243,83 @@ export default function LandingScreen({ navigation }) {
       }),
     ]).start();
     loadToken();
+    startColorPulse();
+    highlightFeature(0);
   }, []);
 
   const loadToken = async () => {
         const token = await AsyncStorage.getItem('token');
     setHasToken(!!token);
   };
+
+  const startColorPulse = () => {
+    RNAnimated.loop(
+      RNAnimated.sequence([
+        RNAnimated.timing(colorPulse, { toValue: 1, duration: 2200, useNativeDriver: true }),
+        RNAnimated.timing(colorPulse, { toValue: 0, duration: 2200, useNativeDriver: true }),
+      ])
+    ).start();
+  };
+
+  const highlightFeature = (activeIndex) => {
+    featureScales.forEach((val, idx) => {
+      RNAnimated.timing(val, {
+        toValue: idx === activeIndex ? 1.05 : 0.94,
+        duration: 240,
+        useNativeDriver: true,
+      }).start();
+    });
+  };
+
+  const handleFeatureScroll = (event) => {
+    const x = event.nativeEvent.contentOffset.x;
+    const idx = Math.round(x / (CARD_WIDTH + CARD_SPACING));
+    const safeIdx = Math.max(0, Math.min(idx, features.length - 1));
+    setFeatureIndex(safeIdx);
+    highlightFeature(safeIdx);
+  };
+
+  const scrollToFeature = (direction) => {
+    const next = Math.max(0, Math.min(featureIndex + direction, features.length - 1));
+    const x = featurePadding + next * (CARD_WIDTH + CARD_SPACING);
+    featureListRef.current?.scrollToOffset({ offset: x, animated: true });
+    setFeatureIndex(next);
+    highlightFeature(next);
+  };
+
+  const handleProgramScroll = (event) => {
+    const x = event.nativeEvent.contentOffset.x;
+    const idx = Math.round(x / (PROG_CARD_WIDTH + PROG_SPACING));
+    setProgramIndex(Math.max(0, Math.min(idx, filteredPrograms.length - 1)));
+  };
+
+  const scrollToProgram = (direction) => {
+    const next = Math.max(0, Math.min(programIndex + direction, filteredPrograms.length - 1));
+    const x = next * (PROG_CARD_WIDTH + PROG_SPACING);
+    programsScrollRef.current?.scrollTo({ x, y: 0, animated: true });
+    setProgramIndex(next);
+  };
+
+  const blobStyle = (delay = 0, size = 180, top = 0, left = 0) => ({
+    position: 'absolute',
+    width: size,
+    height: size,
+    borderRadius: size / 2,
+    top,
+    left,
+    opacity: colorPulse.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0.18, 0.5],
+    }),
+    transform: [
+      {
+        scale: colorPulse.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0.95, 1.08],
+        }),
+      },
+    ],
+  });
 
   const animatedStyle = {
     opacity: fadeAnim,
@@ -214,6 +329,14 @@ export default function LandingScreen({ navigation }) {
   const blocksAnimatedStyle = {
     opacity: blocksOpacity,
     transform: [{ translateY: blocksTranslate }],
+  };
+
+  const gotoAI = () => {
+    if (hasToken) {
+      navigation.navigate('Chat');
+    } else {
+      navigation.navigate('Login');
+    }
   };
 
   const pressTo = (val, toValue) => {
@@ -236,13 +359,13 @@ export default function LandingScreen({ navigation }) {
   return (
     <ScrollView
       ref={scrollRef}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: palette.bg }]}
       showsVerticalScrollIndicator={false}
     >
       {/* Hero Section */}
       <RNAnimated.View style={[styles.heroSection, animatedStyle]}>
         <LinearGradient
-          colors={['#0EA5E9', '#2563EB', '#0F172A']}
+          colors={heroGradientColors}
           style={[
             styles.heroGradient,
             isTablet && styles.heroGradientTablet,
@@ -252,14 +375,23 @@ export default function LandingScreen({ navigation }) {
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
+          <RNAnimated.View style={[styles.blob, blobStyle(0, 240, -40, -30), { backgroundColor: 'rgba(124, 58, 237, 0.35)' }]} />
+          <RNAnimated.View style={[styles.blob, blobStyle(0, 180, 40, 220), { backgroundColor: 'rgba(59, 130, 246, 0.28)' }]} />
           <View style={[
             styles.heroContent,
             isDesktop && styles.heroContentDesktop,
             isLargeDesktop && styles.heroContentLargeDesktop
           ]}>
-            <Text style={styles.heroBadge}>FITNESS OS • AI INSIDE</Text>
+            <Text style={[styles.heroBadge, { 
+              color: isDark ? '#FFFFFF' : '#6366F1',
+              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.16)' : 'rgba(99, 102, 241, 0.15)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.3)' : 'rgba(99, 102, 241, 0.3)'
+            }]}>
+              FITNESS OS • AI INSIDE
+            </Text>
             <Text style={[
               styles.heroTitle,
+              { color: textPrimary },
               isTablet && styles.heroTitleTablet,
               isDesktop && styles.heroTitleDesktop,
               isLargeDesktop && styles.heroTitleLargeDesktop
@@ -268,6 +400,7 @@ export default function LandingScreen({ navigation }) {
             </Text>
             <Text style={[
               styles.heroSubtitle,
+              { color: textMuted },
               isTablet && styles.heroSubtitleTablet,
               isDesktop && styles.heroSubtitleDesktop,
               isLargeDesktop && styles.heroSubtitleLargeDesktop
@@ -354,7 +487,7 @@ export default function LandingScreen({ navigation }) {
         </View>
               <GradientButton
                 title="Попробовать AI"
-                onPress={() => navigation.navigate('Register')}
+              onPress={gotoAI}
                 variant="primary"
                 style={styles.aiButton}
               />
@@ -364,125 +497,238 @@ export default function LandingScreen({ navigation }) {
       </RNAnimated.View>
 
       {/* Features Section */}
+      <View style={styles.sectionSpacer} />
       <RNAnimated.View style={[
         styles.section,
         blocksAnimatedStyle,
         isDesktop && styles.sectionDesktop,
         isLargeDesktop && styles.sectionLargeDesktop
       ]}>
-        <View style={[
-          styles.sectionContent,
-          isDesktop && styles.sectionContentDesktop,
-          isLargeDesktop && styles.sectionContentLargeDesktop
-        ]}>
-          <Text style={[
-            styles.sectionTitle,
-            isTablet && styles.sectionTitleTablet,
-            isDesktop && styles.sectionTitleDesktop
-          ]}>Возможности</Text>
-          <Text style={[
-            styles.sectionSubtitle,
-            isTablet && styles.sectionSubtitleTablet,
-            isDesktop && styles.sectionSubtitleDesktop
-          ]}>
-            Набор инструментов для контроля тела, питания и нагрузки
-          </Text>
-          <View style={styles.tagRow}>
-            {programTags.map((tag) => {
-              const active = activeTag === tag;
-              return (
-                <Pressable
-                  key={tag}
-                  onPress={() => setActiveTag(tag)}
-                  style={[styles.tagChip, active && styles.tagChipActive]}
-                >
-                  <Text style={[styles.tagText, active && styles.tagTextActive]}>{tag}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.carousel}
-            contentContainerStyle={styles.carouselContent}
-          >
-            {programs
-              .filter((p) => activeTag === 'Все' || p.tag === activeTag)
-              .map((p, idx) => (
-                  <AnimatedCard
-                    key={`${p.title}-${idx}`}
-                    index={idx}
-                    onPress={() => navigation.navigate('ProgramDetail', p)}
-                    style={styles.programCard}
-                  >
-                    <View style={styles.programTag}>
-                      <Text style={styles.programTagText}>{p.tag}</Text>
-                    </View>
-                    <Text style={styles.programTitle}>{p.title}</Text>
-                    <Text style={styles.programSubtitle}>{p.subtitle}</Text>
-                    <TouchableOpacity
-                      style={styles.programCta}
-                      onPress={() => navigation.navigate('ProgramDetail', p)}
-                    >
-                      <Text style={styles.programCtaText}>Открыть</Text>
-              </TouchableOpacity>
-                  </AnimatedCard>
-              ))}
-          </ScrollView>
+        <View style={styles.featuresPanel}>
           <View style={[
-            styles.featuresGrid,
-            isTablet && styles.featuresGridTablet,
-            isDesktop && styles.featuresGridDesktop,
-            isLargeDesktop && styles.featuresGridLargeDesktop
+            styles.sectionContent,
+            isDesktop && styles.sectionContentDesktop,
+            isLargeDesktop && styles.sectionContentLargeDesktop
           ]}>
-          {features.map((feature, index) => (
-            <Pressable
-              key={index}
-              onPressIn={() => pressTo(featureScales[index], 0.97)}
-              onPressOut={() => pressTo(featureScales[index], 1)}
-            >
-              <AnimatedCard
-                index={index + 1}
-                style={[
-                  styles.featureCardWrapper,
-                  isTablet && styles.featureCardWrapperTablet,
-                  isDesktop && styles.featureCardWrapperDesktop,
-                  isLargeDesktop && styles.featureCardWrapperLargeDesktop,
-                  { transform: [{ scale: featureScales[index] }] },
-                ]}
+            <Text style={[
+              styles.sectionTitle,
+              isTablet && styles.sectionTitleTablet,
+              isDesktop && styles.sectionTitleDesktop
+            ]}>Возможности</Text>
+            <Text style={[
+              styles.sectionSubtitle,
+              isTablet && styles.sectionSubtitleTablet,
+              isDesktop && styles.sectionSubtitleDesktop
+            ]}>
+              Набор инструментов для контроля тела, питания и нагрузки
+            </Text>
+            <View style={styles.tagRow}>
+              {programTags.map((tag) => {
+                const active = activeTag === tag;
+                return (
+                  <Pressable
+                    key={tag}
+                    onPress={() => setActiveTag(tag)}
+                    style={[styles.tagChip, active && styles.tagChipActive]}
+                  >
+                    <Text style={[styles.tagText, active && styles.tagTextActive]}>{tag}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <View style={styles.carouselNavRow}>
+              <TouchableOpacity
+                style={[styles.carouselNavBtn, programIndex === 0 && styles.carouselNavBtnDisabled]}
+                onPress={() => scrollToProgram(-1)}
+                disabled={programIndex === 0}
               >
-                <LinearGradient
-                  colors={[`${feature.accent}33`, `${feature.accent}0F`]}
+                <Text style={styles.carouselNavText}>←</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.carouselNavBtn, programIndex === filteredPrograms.length - 1 && styles.carouselNavBtnDisabled]}
+                onPress={() => scrollToProgram(1)}
+                disabled={programIndex === filteredPrograms.length - 1}
+              >
+                <Text style={styles.carouselNavText}>→</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.dotsRow}>
+              {filteredPrograms.map((_, i) => (
+                <TouchableOpacity
+                  key={`prog-dot-${i}`}
                   style={[
-                    styles.featureCard,
-                    isDesktop && styles.featureCardDesktop,
-                    isLargeDesktop && styles.featureCardLargeDesktop,
-                    { borderColor: feature.accent }
+                    styles.dot,
+                    i === programIndex && styles.dotActive,
                   ]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  <View style={[styles.featureTag, { backgroundColor: `${feature.accent}22` }]}>
-                    <Text style={[styles.featureTagText, { color: feature.accent }]}>{feature.tag}</Text>
-          </View>
-                  <Text style={[
-                    styles.featureTitle,
-                    isDesktop && styles.featureTitleDesktop,
-                    isLargeDesktop && styles.featureTitleLargeDesktop
-                  ]}>{feature.title}</Text>
-                  <Text style={[
-                    styles.featureDescription,
-                    isDesktop && styles.featureDescriptionDesktop,
-                    isLargeDesktop && styles.featureDescriptionLargeDesktop
-                  ]}>{feature.description}</Text>
-                  <View style={[styles.featureArrow, { backgroundColor: `${feature.accent}15` }]}>
-                    <Text style={[styles.featureArrowText, { color: feature.accent }]}>Подробнее</Text>
-                </View>
-                </LinearGradient>
-              </AnimatedCard>
-            </Pressable>
+                  onPress={() => {
+                    const x = i * (PROG_CARD_WIDTH + PROG_SPACING);
+                    programsScrollRef.current?.scrollTo({ x, y: 0, animated: true });
+                    setProgramIndex(i);
+                  }}
+                />
               ))}
+            </View>
+            <ScrollView
+              ref={programsScrollRef}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.carousel}
+              contentContainerStyle={styles.carouselContent}
+              pagingEnabled
+              scrollEnabled
+              snapToInterval={PROG_CARD_WIDTH + PROG_SPACING}
+              decelerationRate="fast"
+              snapToAlignment="start"
+              onMomentumScrollEnd={handleProgramScroll}
+              onScrollEndDrag={handleProgramScroll}
+              scrollEventThrottle={16}
+            >
+              {filteredPrograms.map((p, idx) => (
+                    <AnimatedCard
+                      key={`${p.title}-${idx}`}
+                      index={idx}
+                      onPress={() => navigation.navigate('ProgramDetail', p)}
+                      style={styles.programCard}
+                    >
+                      <View style={styles.programTag}>
+                        <Text style={styles.programTagText}>{p.tag}</Text>
+                      </View>
+                      <Text style={styles.programTitle}>{p.title}</Text>
+                      <Text style={styles.programSubtitle}>{p.subtitle}</Text>
+                      <TouchableOpacity
+                        style={styles.programCta}
+                        onPress={() => navigation.navigate('ProgramDetail', p)}
+                      >
+                        <Text style={styles.programCtaText}>Открыть</Text>
+                      </TouchableOpacity>
+                    </AnimatedCard>
+              ))}
+            </ScrollView>
+            <View style={styles.carouselNavRow}>
+              <TouchableOpacity
+                style={[styles.carouselNavBtn, featureIndex === 0 && styles.carouselNavBtnDisabled]}
+                onPress={() => scrollToFeature(-1)}
+                disabled={featureIndex === 0}
+              >
+                <Text style={styles.carouselNavText}>←</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.carouselNavBtn, featureIndex === features.length - 1 && styles.carouselNavBtnDisabled]}
+                onPress={() => scrollToFeature(1)}
+                disabled={featureIndex === features.length - 1}
+              >
+                <Text style={styles.carouselNavText}>→</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.dotsRow}>
+              {features.map((_, i) => (
+                <TouchableOpacity
+                  key={`feat-dot-${i}`}
+                  style={[
+                    styles.dot,
+                    i === featureIndex && styles.dotActive,
+                  ]}
+                  onPress={() => {
+                    const x = featurePadding + i * (CARD_WIDTH + CARD_SPACING);
+                    featureListRef.current?.scrollToOffset({ offset: x, animated: true });
+                    setFeatureIndex(i);
+                    highlightFeature(i);
+                  }}
+                />
+              ))}
+            </View>
+            <FlatList
+              ref={featureListRef}
+              data={features}
+              keyExtractor={(item, idx) => `${item.tag}-${idx}`}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={[
+                styles.featuresCarousel,
+                { paddingHorizontal: featurePadding },
+              ]}
+              renderItem={({ item: feature, index }) => (
+                <Pressable
+                  onPressIn={() => pressTo(featureScales[index], 0.97)}
+                  onPressOut={() => pressTo(featureScales[index], 1)}
+                  style={[
+                    styles.featureCardWrapper,
+                    { width: CARD_WIDTH, marginRight: CARD_SPACING },
+                  ]}
+                >
+                  <AnimatedCard
+                    index={index + 1}
+                    style={[
+                      { transform: [{ scale: featureScales[index] }] },
+                    ]}
+                  >
+                    <LinearGradient
+                      colors={[`${feature.accent}33`, `${feature.accent}0F`]}
+                      style={[
+                        styles.featureCard,
+                        isDesktop && styles.featureCardDesktop,
+                        isLargeDesktop && styles.featureCardLargeDesktop,
+                        { borderColor: feature.accent },
+                      ]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                    >
+                      <View style={[styles.featureTag, { backgroundColor: `${feature.accent}22` }]}>
+                        <Text style={[styles.featureTagText, { color: feature.accent }]}>{feature.tag}</Text>
+                      </View>
+                      <Text
+                        style={[
+                          styles.featureTitle,
+                          isDesktop && styles.featureTitleDesktop,
+                          isLargeDesktop && styles.featureTitleLargeDesktop,
+                        ]}
+                      >
+                        {feature.title}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.featureDescription,
+                          isDesktop && styles.featureDescriptionDesktop,
+                          isLargeDesktop && styles.featureDescriptionLargeDesktop,
+                        ]}
+                      >
+                        {feature.description}
+                      </Text>
+                      <View style={styles.featureStatsRow}>
+                        <View style={styles.featureStatItem}>
+                          <Text style={[styles.featureStatValue, { color: feature.accent }]}>{feature.workouts}</Text>
+                          <Text style={[styles.featureStatLabel, { color: palette.muted }]}>Нагрузка</Text>
+                        </View>
+                        <View style={styles.featureStatItem}>
+                          <Text style={[styles.featureStatValue, { color: palette.text }]}>{feature.duration}</Text>
+                          <Text style={[styles.featureStatLabel, { color: palette.muted }]}>Формат</Text>
+                        </View>
+                        <View style={styles.featureStatItem}>
+                          <Text style={[styles.featureStatValue, { color: palette.text }]}>{feature.level}</Text>
+                          <Text style={[styles.featureStatLabel, { color: palette.muted }]}>Уровень</Text>
+                        </View>
+                      </View>
+                      <View style={[styles.featureArrow, { backgroundColor: `${feature.accent}15` }]}>
+                        <Text style={[styles.featureArrowText, { color: feature.accent }]}>Подробнее</Text>
+                      </View>
+                    </LinearGradient>
+                  </AnimatedCard>
+                </Pressable>
+              )}
+              snapToInterval={CARD_WIDTH + CARD_SPACING}
+              decelerationRate="fast"
+              snapToAlignment="center"
+              pagingEnabled
+              scrollEnabled
+              onMomentumScrollEnd={({ nativeEvent }) => handleFeatureScroll({ nativeEvent })}
+              onScrollEndDrag={({ nativeEvent }) => handleFeatureScroll({ nativeEvent })}
+              scrollEventThrottle={16}
+              getItemLayout={(_, index) => ({
+                length: CARD_WIDTH + CARD_SPACING,
+                offset: featurePadding + (CARD_WIDTH + CARD_SPACING) * index,
+                index,
+              })}
+            />
           </View>
         </View>
       </RNAnimated.View>
@@ -490,7 +736,7 @@ export default function LandingScreen({ navigation }) {
       {/* Stats Section */}
       <RNAnimated.View style={[styles.statsSection, blocksAnimatedStyle]}>
         <LinearGradient
-          colors={[palette.card, palette.panel]}
+          colors={statsGradientColors}
           style={[
             styles.statsGradient,
             isDesktop && styles.statsGradientDesktop,
@@ -534,7 +780,7 @@ export default function LandingScreen({ navigation }) {
         isLargeDesktop && styles.devicesSectionLargeDesktop
       ]}>
         <LinearGradient
-          colors={['#0EA5E9', '#2563EB']}
+          colors={devicesGradientColors}
           style={[
             styles.devicesCard,
             isDesktop && styles.devicesCardDesktop,
@@ -653,7 +899,7 @@ export default function LandingScreen({ navigation }) {
               <ImageBackground
                 source={{ uri: t.img }}
                 style={styles.trainerImage}
-                imageStyle={{ borderRadius: 12 }}
+                imageStyle={{ borderRadius: 28 }}
               >
                 <View style={styles.trainerOverlay} />
                 <View style={styles.trainerTag}>
@@ -686,7 +932,7 @@ export default function LandingScreen({ navigation }) {
               <ImageBackground
                 source={{ uri: c.img }}
                 style={styles.courseImage}
-                imageStyle={{ borderRadius: 12 }}
+                imageStyle={{ borderRadius: 28 }}
               >
                 <View style={styles.courseOverlay} />
                 <View style={styles.courseTag}>
@@ -712,37 +958,39 @@ export default function LandingScreen({ navigation }) {
         </View>
       </RNAnimated.View>
 
-      {/* CTA Section */}
-      <RNAnimated.View style={[
-        styles.ctaSection,
-        blocksAnimatedStyle,
-        isDesktop && styles.ctaSectionDesktop,
-        isLargeDesktop && styles.ctaSectionLargeDesktop
-      ]}>
-        <AnimatedCard index={5} style={styles.ctaCard}>
-          <LinearGradient
-            colors={[palette.primary, palette.accent]}
-            style={[
-              styles.ctaGradient,
-              isDesktop && styles.ctaGradientDesktop,
-              isLargeDesktop && styles.ctaGradientLargeDesktop
-            ]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Text style={styles.ctaTitle}>Начните сегодня</Text>
-            <Text style={styles.ctaSubtitle}>
-              Подключите AI-ассистента и получите свой первый рацион и тренировку за минуту
-            </Text>
-            <GradientButton
-              title="Создать аккаунт"
-              onPress={() => navigation.navigate('Register')}
-              variant="primary"
-              style={styles.ctaButton}
-            />
-          </LinearGradient>
-        </AnimatedCard>
-      </RNAnimated.View>
+      {/* CTA Section (показываем только если нет токена) */}
+      {!hasToken && (
+        <RNAnimated.View style={[
+          styles.ctaSection,
+          blocksAnimatedStyle,
+          isDesktop && styles.ctaSectionDesktop,
+          isLargeDesktop && styles.ctaSectionLargeDesktop
+        ]}>
+          <AnimatedCard index={5} style={styles.ctaCard}>
+            <LinearGradient
+              colors={ctaGradientColors}
+              style={[
+                styles.ctaGradient,
+                isDesktop && styles.ctaGradientDesktop,
+                isLargeDesktop && styles.ctaGradientLargeDesktop
+              ]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Text style={styles.ctaTitle}>Начните сегодня</Text>
+              <Text style={styles.ctaSubtitle}>
+                Подключите AI-ассистента и получите свой первый рацион и тренировку за минуту
+              </Text>
+              <GradientButton
+                title="Создать аккаунт"
+                onPress={() => navigation.navigate('Register')}
+                variant="primary"
+                style={styles.ctaButton}
+              />
+            </LinearGradient>
+          </AnimatedCard>
+        </RNAnimated.View>
+      )}
 
       {/* Footer */}
       <View style={[
@@ -794,10 +1042,10 @@ export default function LandingScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (palette) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: palette.bg,
+    backgroundColor: '#F8FAFC',
   },
   heroSection: {
     minHeight: 520,
@@ -809,6 +1057,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
   },
   heroGradientTablet: {
     paddingTop: 110,
@@ -826,6 +1075,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     maxWidth: 720,
     width: '100%',
+    position: 'relative',
+    zIndex: 2,
   },
   heroContentDesktop: {
     maxWidth: 900,
@@ -834,20 +1085,19 @@ const styles = StyleSheet.create({
     maxWidth: 1200,
   },
   heroBadge: {
-    fontSize: 12,
-    color: palette.primary,
-    backgroundColor: 'rgba(34, 211, 238, 0.12)',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    fontSize: 13,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     borderRadius: 999,
-    marginBottom: 20,
+    marginBottom: 24,
     fontWeight: '800',
-    letterSpacing: 1.4,
+    letterSpacing: 1.6,
+    borderWidth: 1,
+    zIndex: 2,
   },
   heroTitle: {
     fontSize: 36,
     fontWeight: '900',
-    color: palette.text,
     textAlign: 'center',
     marginBottom: 16,
     letterSpacing: -1,
@@ -867,7 +1117,6 @@ const styles = StyleSheet.create({
   },
   heroSubtitle: {
     fontSize: 16,
-    color: palette.muted,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 28,
@@ -897,15 +1146,20 @@ const styles = StyleSheet.create({
     minWidth: 180,
   },
   heroButtonSecondary: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    minWidth: 160,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    minWidth: 180,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: palette.border,
+    borderWidth: 1.5,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+    shadowColor: palette.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 4,
   },
   heroButtonSecondaryText: {
     color: palette.text,
@@ -920,14 +1174,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   heroStatCard: {
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
-    borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    minWidth: 120,
+    borderColor: 'rgba(255,255,255,0.12)',
+    minWidth: 130,
     alignItems: 'center',
+    shadowColor: 'transparent',
+    elevation: 0,
+    // web-only
+    boxShadow: '0 8px 24px rgba(0,0,0,0.24)',
   },
   heroStatValue: {
     color: '#fff',
@@ -941,17 +1199,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   heroMetrics: {
-    marginTop: 28,
-    backgroundColor: palette.card,
-    borderRadius: 16,
+    marginTop: 32,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: 'rgba(255,255,255,0.12)',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 18,
-    gap: 12,
+    paddingVertical: 20,
+    paddingHorizontal: 24,
+    gap: 16,
     flexWrap: 'wrap',
+    shadowColor: 'transparent',
+    elevation: 0,
+    // web-only
+    boxShadow: '0 10px 28px rgba(0,0,0,0.22)',
   },
   heroMetricsStacked: {
     flexDirection: 'column',
@@ -991,10 +1253,15 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   aiGradient: {
-    borderRadius: 24,
-    padding: 28,
-    borderWidth: 1,
-    borderColor: palette.border,
+    borderRadius: 32,
+    padding: 32,
+    borderWidth: 1.5,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+    shadowColor: palette.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
   },
   aiContent: {
     alignItems: 'flex-start',
@@ -1044,6 +1311,9 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   sectionDesktop: {
+    maxWidth: 1200,
+    alignSelf: 'center',
+    paddingHorizontal: 48,
     paddingHorizontal: 32,
   },
   sectionLargeDesktop: {
@@ -1096,16 +1366,21 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   tagChip: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    backgroundColor: '#111827',
-    borderWidth: 1,
-    borderColor: palette.border,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 20,
+    backgroundColor: 'rgba(31, 32, 71, 0.6)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(99, 102, 241, 0.2)',
   },
   tagChipActive: {
-    backgroundColor: 'rgba(34, 211, 238, 0.12)',
+    backgroundColor: 'rgba(99, 102, 241, 0.2)',
     borderColor: palette.primary,
+    shadowColor: palette.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   tagText: {
     color: palette.muted,
@@ -1124,20 +1399,28 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   programCard: {
-    backgroundColor: palette.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: palette.border,
-    padding: 16,
-    width: 240,
-    gap: 8,
+    backgroundColor: 'rgba(31, 32, 71, 0.6)',
+    borderRadius: 28,
+    borderWidth: 1.5,
+    borderColor: 'rgba(99, 102, 241, 0.25)',
+    padding: 20,
+    width: 260,
+    minHeight: 210,
+    gap: 10,
+    justifyContent: 'space-between',
+    shadowColor: 'transparent',
+    elevation: 0,
+    // web-only
+    boxShadow: '0 10px 28px rgba(0,0,0,0.22)',
   },
   programTag: {
     alignSelf: 'flex-start',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    backgroundColor: 'rgba(34, 211, 238, 0.15)',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    backgroundColor: 'rgba(99, 102, 241, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.4)',
   },
   programTagText: {
     color: palette.primary,
@@ -1152,71 +1435,53 @@ const styles = StyleSheet.create({
   },
   programSubtitle: {
     fontSize: 13,
-    color: palette.muted,
+    color: palette.text,
+    flexShrink: 1,
   },
   programCta: {
-    marginTop: 6,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: 'rgba(34, 211, 238, 0.14)',
+    marginTop: 12,
+    paddingVertical: 12,
+    borderRadius: 16,
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(34, 211, 238, 0.4)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(99, 102, 241, 0.4)',
+    shadowColor: palette.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
   },
   programCtaText: {
     color: palette.primary,
     fontWeight: '800',
     fontSize: 13,
   },
-  featuresGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -7,
-    width: '100%',
-  },
-  featuresGridTablet: {
-    marginHorizontal: -8,
-  },
-  featuresGridDesktop: {
-    marginHorizontal: -10,
-  },
-  featuresGridLargeDesktop: {
-    marginHorizontal: -12,
+  featuresCarousel: {
+    paddingVertical: 8,
   },
   featureCardWrapper: {
-    width: '100%',
-    paddingHorizontal: 7,
-    marginBottom: 14,
-  },
-  featureCardWrapperTablet: {
-    width: '50%',
-    paddingHorizontal: 8,
-    marginBottom: 16,
-  },
-  featureCardWrapperDesktop: {
-    width: '33.333%',
-    paddingHorizontal: 10,
-    marginBottom: 20,
-  },
-  featureCardWrapperLargeDesktop: {
-    width: '33.333%',
-    paddingHorizontal: 12,
-    marginBottom: 24,
+    width: 300,
+    marginRight: 18,
+    flexShrink: 0,
   },
   featureCard: {
     marginBottom: 0,
-    borderRadius: 18,
-    borderWidth: 1,
-    backgroundColor: palette.card,
-    padding: 20,
-    minHeight: 220,
-    height: '100%',
+    borderRadius: 24,
+    borderWidth: 1.5,
+    backgroundColor: 'rgba(31, 32, 71, 0.6)',
+    padding: 24,
+    minHeight: 320,
     flexDirection: 'column',
     justifyContent: 'space-between',
+    shadowColor: 'transparent',
+    elevation: 0,
+    // web-only
+    boxShadow: '0 12px 32px rgba(0,0,0,0.22)',
   },
   featureCardDesktop: {
     padding: 24,
-    minHeight: 240,
+    minHeight: 260,
     borderRadius: 20,
   },
   featureCardLargeDesktop: {
@@ -1224,12 +1489,95 @@ const styles = StyleSheet.create({
     minHeight: 260,
     borderRadius: 22,
   },
+  featureMiniRow: {
+    display: 'none',
+  },
+  featureStatsRow: {
+    marginTop: 12,
+    marginBottom: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  featureStatItem: {
+    flex: 1,
+  },
+  featureStatValue: {
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  featureStatLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    opacity: 0.8,
+  },
+  carouselNavRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginBottom: 8,
+  },
+  carouselNavBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  carouselNavBtnDisabled: {
+    opacity: 0.35,
+  },
+  carouselNavText: {
+    color: palette.text,
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    marginHorizontal: 4,
+  },
+  dotActive: {
+    backgroundColor: '#8B5CF6',
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  sectionSpacer: {
+    height: 32,
+  },
+  featuresPanel: {
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    padding: 16,
+  },
   featureTag: {
     alignSelf: 'flex-start',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    marginBottom: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   featureTagText: {
     fontSize: 12,
@@ -1270,10 +1618,12 @@ const styles = StyleSheet.create({
   },
   featureArrow: {
     alignSelf: 'flex-start',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 16,
     marginTop: 'auto',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   featureArrowText: {
     fontSize: 13,
@@ -1285,14 +1635,19 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   statsGradient: {
-    paddingVertical: 44,
-    paddingHorizontal: 24,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: palette.border,
+    paddingVertical: 52,
+    paddingHorizontal: 32,
+    borderRadius: 32,
+    borderWidth: 1.5,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
     maxWidth: 1200,
     alignSelf: 'center',
     width: '100%',
+    shadowColor: palette.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
   },
   statsGradientDesktop: {
     paddingVertical: 52,
@@ -1325,12 +1680,17 @@ const styles = StyleSheet.create({
   },
   statItem: {
     alignItems: 'center',
-    minWidth: 120,
-    padding: 12,
-    borderRadius: 14,
-    backgroundColor: '#0C1627',
-    borderWidth: 1,
-    borderColor: palette.border,
+    minWidth: 140,
+    padding: 16,
+    borderRadius: 24,
+    backgroundColor: 'rgba(31, 32, 71, 0.6)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(99, 102, 241, 0.25)',
+    shadowColor: palette.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
   },
   statItemTablet: {
     minWidth: '45%',
@@ -1365,13 +1725,18 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   devicesCard: {
-    borderRadius: 20,
-    padding: 24,
+    borderRadius: 32,
+    padding: 32,
     flexDirection: 'row',
-    gap: 16,
+    gap: 20,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.15)',
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 12,
   },
   devicesCardDesktop: {
     padding: 32,
@@ -1386,16 +1751,16 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   devicesTitle: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '800',
-    color: '#0B1220',
+    color: '#0A0E1A',
     letterSpacing: -0.3,
   },
   devicesSubtitle: {
-    fontSize: 14,
-    color: '#0B1220',
-    opacity: 0.8,
-    lineHeight: 20,
+    fontSize: 15,
+    color: '#0A0E1A',
+    opacity: 0.85,
+    lineHeight: 22,
   },
   devicesBadges: {
     flexDirection: 'row',
@@ -1409,7 +1774,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.85)',
   },
   storeBadgeText: {
-    color: '#0B1220',
+    color: '#0A0E1A',
     fontWeight: '800',
     fontSize: 12,
   },
@@ -1423,11 +1788,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   mockScreen: {
-    backgroundColor: 'rgba(15, 23, 42, 0.55)',
-    borderRadius: 14,
-    padding: 12,
+    backgroundColor: 'rgba(10, 14, 26, 0.6)',
+    borderRadius: 16,
+    padding: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: 'rgba(255,255,255,0.15)',
   },
   mockScreenSmall: {
     alignSelf: 'flex-start',
@@ -1459,7 +1824,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(124, 58, 237, 0.18)',
   },
   recipeTagText: {
-    color: '#C084FC',
+    color: '#A78BFA',
     fontWeight: '800',
     fontSize: 12,
   },
@@ -1526,14 +1891,14 @@ const styles = StyleSheet.create({
   },
   trainerCard: {
     marginBottom: 0,
-    width: 240,
+    width: 260,
   },
   trainerImage: {
-    height: 280,
-    borderRadius: 12,
+    height: 320,
+    borderRadius: 28,
     overflow: 'hidden',
     justifyContent: 'flex-end',
-    padding: 12,
+    padding: 16,
   },
   trainerOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -1549,7 +1914,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   trainerTagText: {
-    color: '#22D3EE',
+    color: '#06B6D4',
     fontWeight: '800',
     fontSize: 12,
   },
@@ -1566,72 +1931,82 @@ const styles = StyleSheet.create({
   },
   courseCard: {
     marginBottom: 0,
-    width: 240,
+    width: 260,
+    shadowColor: 'transparent',
+    elevation: 0,
+    // web-only
+    boxShadow: '0 12px 32px rgba(0,0,0,0.22)',
   },
   courseImage: {
-    height: 220,
-    borderRadius: 12,
+    height: 260,
+    borderRadius: 28,
     overflow: 'hidden',
     justifyContent: 'flex-end',
-    padding: 12,
+    padding: 16,
   },
   courseOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.25)',
+    backgroundColor: 'rgba(15, 15, 35, 0.75)',
     borderRadius: 12,
   },
   courseTag: {
     alignSelf: 'flex-start',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    backgroundColor: 'rgba(124,58,237,0.22)',
-    marginBottom: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    backgroundColor: 'rgba(168, 85, 247, 0.25)',
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(168, 85, 247, 0.4)',
   },
   courseTagText: {
-    color: '#C084FC',
+    color: '#C4B5FD',
     fontWeight: '800',
-    fontSize: 12,
+    fontSize: 13,
+    letterSpacing: 0.5,
   },
   courseTitle: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontWeight: '900',
-    fontSize: 16,
-    letterSpacing: -0.2,
+    fontSize: 18,
+    letterSpacing: -0.4,
   },
   courseMeta: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 12,
-    marginTop: 2,
+    color: '#F8FAFC',
+    fontSize: 13,
+    marginTop: 4,
+    fontWeight: '600',
   },
   scrollTopButton: {
     position: 'absolute',
-    right: 16,
-    bottom: 24,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    right: 20,
+    bottom: 28,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: palette.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 10,
+    shadowColor: palette.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    elevation: 14,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   scrollTopText: {
-    color: '#0B1220',
+    color: '#0A0E1A',
     fontWeight: '900',
-    fontSize: 18,
+    fontSize: 20,
   },
   footer: {
-    paddingVertical: 32,
+    paddingVertical: 36,
     paddingHorizontal: 24,
-    backgroundColor: '#0A101B',
+    backgroundColor: '#0A0E1A',
     borderTopWidth: 1,
-    borderColor: '#111827',
-    gap: 20,
+    borderColor: '#1A2332',
+    gap: 24,
     width: '100%',
   },
   footerDesktop: {
@@ -1672,8 +2047,8 @@ const styles = StyleSheet.create({
   },
   footerBottom: {
     borderTopWidth: 1,
-    borderColor: '#111827',
-    paddingTop: 12,
+    borderColor: '#1A2332',
+    paddingTop: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     flexWrap: 'wrap',
@@ -1701,10 +2076,17 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   ctaGradient: {
-    borderRadius: 22,
-    padding: 38,
+    borderRadius: 32,
+    padding: 48,
     alignItems: 'center',
-    gap: 14,
+    gap: 18,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 24,
+    elevation: 14,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   ctaGradientDesktop: {
     padding: 48,
@@ -1715,17 +2097,18 @@ const styles = StyleSheet.create({
     borderRadius: 28,
   },
   ctaTitle: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: '800',
-    color: '#0B1220',
+    color: '#0A0E1A',
     textAlign: 'center',
   },
   ctaSubtitle: {
-    fontSize: 15,
-    color: '#0B1220',
+    fontSize: 16,
+    color: '#0A0E1A',
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 24,
     marginBottom: 4,
+    opacity: 0.9,
   },
   ctaButton: {
     minWidth: 220,

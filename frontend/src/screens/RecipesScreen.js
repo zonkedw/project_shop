@@ -1,27 +1,23 @@
 import React, { useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Animated as RNAnimated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Animated as RNAnimated, useWindowDimensions } from 'react-native';
 import AnimatedCard from '../components/AnimatedCard';
 import { LinearGradient } from 'expo-linear-gradient';
-
-const palette = {
-  bg: '#0B1220',
-  card: '#111827',
-  border: '#1F2937',
-  primary: '#22D3EE',
-  accent: '#7C3AED',
-  text: '#E2E8F0',
-  muted: '#94A3B8',
-};
+import { useTheme } from '../hooks/useTheme';
 
 const recipes = [
-  { tag: 'Завтрак', title: 'Панкейки из зелёной гречки', meta: '25 мин • 222 ккал', gradient: ['#22D3EE', '#2563EB'] },
-  { tag: 'Перекус', title: 'Йогурт с чиа и тыквой', meta: '40 мин • 103 ккал', gradient: ['#7C3AED', '#4C1D95'] },
-  { tag: 'Ужин', title: 'Перловка с индейкой', meta: '45 мин • 126 ккал', gradient: ['#22C55E', '#15803D'] },
-  { tag: 'Перекус', title: 'Смузи с имбирём', meta: '10 мин • 95 ккал', gradient: ['#F97316', '#C2410C'] },
-  { tag: 'Обед', title: 'Рагу с индейкой', meta: '45 мин • 145 ккал', gradient: ['#06B6D4', '#0E7490'] },
+  { tag: 'Завтрак', title: 'Панкейки из зелёной гречки', meta: '25 мин • 222 ккал', gradient: ['#6366F1', '#8B5CF6'] },
+  { tag: 'Перекус', title: 'Йогурт с чиа и тыквой', meta: '40 мин • 103 ккал', gradient: ['#A855F7', '#EC4899'] },
+  { tag: 'Ужин', title: 'Перловка с индейкой', meta: '45 мин • 126 ккал', gradient: ['#22C55E', '#4ADE80'] },
+  { tag: 'Перекус', title: 'Смузи с имбирём', meta: '10 мин • 95 ккал', gradient: ['#F59E0B', '#F97316'] },
+  { tag: 'Обед', title: 'Рагу с индейкой', meta: '45 мин • 145 ккал', gradient: ['#3B82F6', '#60A5FA'] },
 ];
 
 export default function RecipesScreen() {
+  const { theme, isDark } = useTheme();
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
+  const isDesktop = width >= 1024;
+  
   const fade = useRef(new RNAnimated.Value(0)).current;
   const slide = useRef(new RNAnimated.Value(20)).current;
 
@@ -33,11 +29,15 @@ export default function RecipesScreen() {
   }, []);
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView style={[styles.container, { backgroundColor: theme.bg }]} showsVerticalScrollIndicator={false}>
       <RNAnimated.View style={[styles.hero, { opacity: fade, transform: [{ translateY: slide }] }]}>
-        <LinearGradient colors={['#22D3EE', '#2563EB', '#0F172A']} style={styles.heroGradient}>
-          <Text style={styles.heroBadge}>Рационы и рецепты</Text>
-          <Text style={styles.heroTitle}>Быстрые блюда под ваши цели</Text>
+        <LinearGradient colors={theme.gradients.accent} style={styles.heroGradient}>
+          <Text style={styles.heroBadge}>
+            🍳 Рационы и рецепты
+          </Text>
+          <Text style={styles.heroTitle}>
+            Быстрые блюда под ваши цели
+          </Text>
           <Text style={styles.heroSubtitle}>
             Дефицит, поддержание или набор — готовые идеи с реальными продуктами из РФ.
           </Text>
@@ -62,32 +62,33 @@ export default function RecipesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: palette.bg,
   },
   hero: {
     padding: 20,
   },
   heroGradient: {
-    borderRadius: 18,
-    padding: 20,
+    borderRadius: 24,
+    padding: 24,
     gap: 10,
   },
   heroBadge: {
-    color: '#E0F2FE',
-    fontWeight: '800',
-    fontSize: 12,
+    color: '#FFFFFF',
+    fontWeight: '900',
+    fontSize: 13,
     letterSpacing: 1,
+    opacity: 0.95,
   },
   heroTitle: {
-    color: '#fff',
-    fontSize: 24,
+    color: '#FFFFFF',
+    fontSize: 28,
     fontWeight: '900',
-    letterSpacing: -0.3,
+    letterSpacing: -0.6,
   },
   heroSubtitle: {
-    color: '#E2E8F0',
-    fontSize: 14,
-    lineHeight: 20,
+    color: 'rgba(255, 255, 255, 0.95)',
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '600',
   },
   grid: {
     padding: 20,
@@ -100,24 +101,24 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     minHeight: 120,
+    justifyContent: 'flex-end',
   },
   tag: {
-    color: 'rgba(255,255,255,0.85)',
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 11,
     fontWeight: '800',
-    fontSize: 12,
+    marginBottom: 8,
   },
   title: {
     color: '#fff',
     fontSize: 18,
     fontWeight: '900',
-    marginTop: 6,
     letterSpacing: -0.2,
+    marginBottom: 4,
   },
   meta: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 13,
-    marginTop: 6,
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
-
-

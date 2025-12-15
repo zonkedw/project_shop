@@ -9,10 +9,21 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  useWindowDimensions,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { nutritionAPI } from '../services/api';
+import { useTheme } from '../hooks/useTheme';
+import GradientButton from '../components/GradientButton';
 
 export default function AddMealScreen({ navigation, route }) {
+  const { theme, isDark } = useTheme();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 1024;
+
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState([]);
@@ -23,7 +34,7 @@ export default function AddMealScreen({ navigation, route }) {
 
   const fade = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.timing(fade, { toValue: 1, duration: 350, useNativeDriver: true }).start();
+    Animated.timing(fade, { toValue: 1, duration: 600, useNativeDriver: true }).start();
   }, [fade]);
 
   // Инициализация при редактировании существующего приёма
@@ -50,7 +61,6 @@ export default function AddMealScreen({ navigation, route }) {
     const product = route?.params?.scannedProduct;
     if (product) {
       addToSelected(product);
-      // очищаем параметр, чтобы не добавлялся повторно при возвращении
       navigation.setParams({ scannedProduct: undefined });
     }
   }, [route?.params?.scannedProduct]);
@@ -76,7 +86,11 @@ export default function AddMealScreen({ navigation, route }) {
 
   const changeGrams = (id, gramsText) => {
     const grams = Math.max(0, parseInt(gramsText || '0', 10));
-    setSelected((list) => list.map((i) => (i.product.id === id ? { ...i, grams } : i)));
+    setSelected((list) => list.map((i) => (i.product.id === id || i.product.product_id === id ? { ...i, grams } : i)));
+  };
+
+  const removeItem = (id) => {
+    setSelected((list) => list.filter((i) => (i.product.id || i.product.product_id) !== id));
   };
 
   const calcCalories = (product, grams) => {
@@ -114,175 +128,464 @@ export default function AddMealScreen({ navigation, route }) {
     }
   };
 
+  const mealTypes = [
+    { k: 'breakfast', t: 'Завтрак', icon: '🌅' },
+    { k: 'lunch', t: 'Обед', icon: '🍽️' },
+    { k: 'dinner', t: 'Ужин', icon: '🌙' },
+    { k: 'snack', t: 'Перекус', icon: '🍪' },
+  ];
+
   return (
-    <View style={styles.container}>
-      <Animated.View style={[styles.header, { opacity: fade }]}> 
-        <Text style={styles.title}>{editingMeal ? 'Редактировать приём' : 'Добавить приём пищи'}</Text>
-        <Text style={styles.subtitle}>Найдите продукт и укажите граммы</Text>
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: theme.bg }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <Animated.View style={{ opacity: fade }}>
+        <LinearGradient
+          colors={theme.gradients.secondary}
+          style={styles.hero}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <Text style={styles.heroTitle}>
+            {editingMeal ? '✏️ Редактировать приём' : '🍽️ Добавить приём пищи'}
+          </Text>
+          <Text style={styles.heroSubtitle}>
+            Найдите продукт в базе или отсканируйте штрих-код
+          </Text>
+        </LinearGradient>
       </Animated.View>
 
-      <View style={styles.typeRow}>
-        {[
-          { k: 'breakfast', t: 'Завтрак' },
-          { k: 'lunch', t: 'Обед' },
-          { k: 'dinner', t: 'Ужин' },
-          { k: 'snack', t: 'Перекус' },
-        ].map((m) => (
-          <TouchableOpacity key={m.k} style={[styles.chip, mealType === m.k && styles.chipActive]} onPress={() => setMealType(m.k)}>
-            <Text style={[styles.chipText, mealType === m.k && styles.chipTextActive]}>{m.t}</Text>
+      <View style={[styles.typeRow, { backgroundColor: theme.bg }]}>
+        {mealTypes.map((m) => (
+          <TouchableOpacity 
+            key={m.k} 
+            style={[
+              styles.chip, 
+              { 
+                backgroundColor: mealType === m.k ? theme.primary : (isDark ? theme.glass.weak : theme.bgSecondary),
+                borderColor: mealType === m.k ? theme.primary : theme.border
+              }
+            ]} 
+            onPress={() => setMealType(m.k)}
+          >
+            <Text style={[
+              styles.chipText, 
+              { color: mealType === m.k ? '#FFFFFF' : theme.text }
+            ]}>
+              {m.icon} {m.t}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <View style={styles.searchRow}>
+      <View style={[styles.searchRow, { backgroundColor: theme.bg }]}>
         <TextInput
-          style={styles.search}
+          style={[styles.search, { 
+            backgroundColor: isDark ? theme.glass.weak : theme.surface,
+            borderColor: theme.borderLight,
+            color: theme.text 
+          }]}
           placeholder="Поиск продуктов..."
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor={theme.textMuted}
           value={query}
           onChangeText={setQuery}
           onSubmitEditing={search}
           returnKeyType="search"
         />
-        <TouchableOpacity style={styles.searchBtn} onPress={search} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.searchText}>Найти</Text>}
+        <TouchableOpacity 
+          style={[styles.searchBtn, { backgroundColor: theme.primary }]} 
+          onPress={search} 
+          disabled={loading}
+        >
+          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.searchText}>🔍</Text>}
         </TouchableOpacity>
-        <TouchableOpacity style={styles.scanBtn} onPress={() => navigation.navigate('Scanner')}>
-          <Text style={styles.scanText}>Сканер</Text>
+        <TouchableOpacity 
+          style={[styles.scanBtn, { 
+            backgroundColor: isDark ? theme.surface : theme.bgSecondary,
+            borderColor: theme.border 
+          }]} 
+          onPress={() => navigation.navigate('Scanner')}
+        >
+          <Text style={[styles.scanText, { color: theme.text }]}>📷</Text>
         </TouchableOpacity>
       </View>
 
       <FlatList
         data={results}
         keyExtractor={(item, idx) => String(item.id || item.product_id || idx)}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 8 }}
+        contentContainerStyle={[
+          styles.listContent,
+          isDesktop && styles.listContentDesktop
+        ]}
         ListEmptyComponent={
           !loading && (
-            <View style={styles.emptyBox}><Text style={styles.emptyText}>Начните с поиска продуктов</Text></View>
+            <View style={[styles.emptyBox, { 
+              backgroundColor: isDark ? theme.surface : theme.surface,
+              borderColor: theme.borderLight 
+            }]}>
+              <Text style={[styles.emptyText, { color: theme.textMuted }]}>
+                {query ? 'Продукты не найдены' : 'Начните с поиска продуктов'}
+              </Text>
+            </View>
           )
         }
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.resultItem} onPress={() => addToSelected(item)}>
+          <TouchableOpacity 
+            style={[styles.resultItem, { 
+              backgroundColor: isDark ? theme.surface : theme.surface,
+              borderColor: theme.borderLight 
+            }]} 
+            onPress={() => addToSelected(item)}
+          >
             <View style={{ flex: 1 }}>
-              <Text style={styles.resultName}>{item.name || item.title || 'Продукт'}</Text>
-              <Text style={styles.resultMeta}>{(item.calories_per_100g ?? item.calories ?? 0)} ккал на 100 г</Text>
+              <Text style={[styles.resultName, { color: theme.text }]}>
+                {item.name || item.title || 'Продукт'}
+              </Text>
+              <Text style={[styles.resultMeta, { color: theme.textMuted }]}>
+                {(item.calories_per_100g ?? item.calories ?? 0)} ккал на 100 г
+              </Text>
             </View>
-            <Text style={styles.addHint}>Добавить</Text>
+            <View style={[styles.addBtn, { backgroundColor: `${theme.success}20` }]}>
+              <Text style={[styles.addHint, { color: theme.success }]}>+ Добавить</Text>
+            </View>
           </TouchableOpacity>
         )}
       />
 
       {selected.length > 0 && (
-        <View style={styles.selectedBox}>
-          <Text style={styles.selectedTitle}>Выбрано</Text>
-          {selected.map((i) => (
-            <View key={i.product.id || i.product.product_id} style={styles.selRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.selName}>{i.product.name || i.product.title || 'Продукт'}</Text>
-                <Text style={styles.selMeta}>{calcCalories(i.product, i.grams)} ккал • {i.grams} г</Text>
-              </View>
-              <TextInput
-                style={styles.gramsInput}
-                keyboardType="numeric"
-                value={String(i.grams)}
-                onChangeText={(t) => changeGrams(i.product.id || i.product.product_id, t)}
-              />
-              <View style={styles.quickRow}>
-                {[50,100,150].map((g)=> (
-                  <TouchableOpacity key={g} style={styles.quickBtn} onPress={() => changeGrams(i.product.id || i.product.product_id, String(g))}>
-                    <Text style={styles.quickText}>{g} г</Text>
+        <View style={[styles.selectedBox, { 
+          backgroundColor: isDark ? theme.surface : theme.surface,
+          borderTopColor: theme.borderLight 
+        }]}>
+          <ScrollView style={styles.selectedScroll} showsVerticalScrollIndicator={false}>
+            <Text style={[styles.selectedTitle, { color: theme.text }]}>
+              Выбрано продуктов: {selected.length}
+            </Text>
+            {selected.map((i) => (
+              <View 
+                key={i.product.id || i.product.product_id} 
+                style={[styles.selCard, { 
+                  backgroundColor: isDark ? theme.glass.weak : theme.bgSecondary,
+                  borderColor: theme.border 
+                }]}
+              >
+                <View style={styles.selHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.selName, { color: theme.text }]}>
+                      {i.product.name || i.product.title || 'Продукт'}
+                    </Text>
+                    <Text style={[styles.selMeta, { color: theme.textMuted }]}>
+                      {calcCalories(i.product, i.grams)} ккал • {i.grams} г
+                    </Text>
+                  </View>
+                  <TouchableOpacity 
+                    style={[styles.removeBtn, { 
+                      backgroundColor: `${theme.error}15`,
+                      borderColor: `${theme.error}40`
+                    }]} 
+                    onPress={() => removeItem(i.product.id || i.product.product_id)}
+                  >
+                    <Text style={[styles.removeText, { color: theme.error }]}>×</Text>
                   </TouchableOpacity>
-                ))}
+                </View>
+                <View style={styles.inputRow}>
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Граммы:</Text>
+                  <TextInput
+                    style={[styles.gramsInput, { 
+                      backgroundColor: isDark ? theme.bg : theme.surface,
+                      borderColor: theme.border,
+                      color: theme.text 
+                    }]}
+                    keyboardType="numeric"
+                    value={String(i.grams)}
+                    onChangeText={(t) => changeGrams(i.product.id || i.product.product_id, t)}
+                  />
+                  <View style={styles.quickRow}>
+                    {[50, 100, 150, 200].map((g) => (
+                      <TouchableOpacity 
+                        key={g} 
+                        style={[styles.quickBtn, { 
+                          backgroundColor: i.grams === g ? theme.primary : (isDark ? theme.glass.weak : theme.bgSecondary),
+                          borderColor: i.grams === g ? theme.primary : theme.border
+                        }]} 
+                        onPress={() => changeGrams(i.product.id || i.product.product_id, String(g))}
+                      >
+                        <Text style={[
+                          styles.quickText, 
+                          { color: i.grams === g ? '#FFFFFF' : theme.text }
+                        ]}>
+                          {g}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
               </View>
-            </View>
-          ))}
+            ))}
+          </ScrollView>
 
-          <View style={styles.footerRow}>
-            <Text style={styles.totalText}>Итого: {totalCalories} ккал</Text>
-            <TouchableOpacity style={[styles.saveBtn, submitting && { opacity: 0.6 }]} onPress={submit} disabled={submitting}>
-              {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Сохранить</Text>}
-            </TouchableOpacity>
+          <View style={[styles.footer, { borderTopColor: theme.borderLight }]}>
+            <View style={[styles.totalCard, { 
+              backgroundColor: `${theme.primary}15`,
+              borderColor: theme.primary 
+            }]}>
+              <Text style={[styles.totalLabel, { color: theme.textSecondary }]}>Итого:</Text>
+              <Text style={[styles.totalText, { color: theme.primary }]}>
+                {totalCalories} ккал
+              </Text>
+            </View>
+            <GradientButton
+              title={submitting ? 'Сохранение...' : 'Сохранить приём'}
+              onPress={submit}
+              disabled={submitting}
+              variant="success"
+              style={styles.saveButton}
+            />
           </View>
         </View>
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0B1220' },
-  header: { paddingTop: 12, paddingHorizontal: 16, paddingBottom: 8 },
-  title: { color: '#E5E7EB', fontSize: 20, fontWeight: '700' },
-  subtitle: { color: '#94A3B8', marginTop: 4, fontSize: 13 },
-
-  searchRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginTop: 12 },
-  search: {
-    flex: 1,
-    backgroundColor: '#0F172A',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: '#E5E7EB',
-    borderWidth: 1,
-    borderColor: 'rgba(148,163,184,0.25)'
-  },
-  searchBtn: { backgroundColor: '#4F46E5', borderRadius: 12, paddingHorizontal: 16, justifyContent: 'center' },
-  searchText: { color: '#fff', fontWeight: '600' },
-  scanBtn: { backgroundColor: '#111827', borderRadius: 12, paddingHorizontal: 12, justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(148,163,184,0.35)' },
-  scanText: { color: '#E5E7EB', fontWeight: '600' },
-
-  emptyBox: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    backgroundColor: '#0F172A',
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(148,163,184,0.25)'
-  },
-  emptyText: { color: '#94A3B8', textAlign: 'center' },
-
-  resultItem: {
-    backgroundColor: '#0F172A',
-    borderRadius: 12,
-    padding: 14,
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(148,163,184,0.25)',
-    flexDirection: 'row',
+  container: { flex: 1 },
+  hero: {
+    paddingTop: 60,
+    paddingBottom: 32,
+    paddingHorizontal: 28,
     alignItems: 'center',
   },
-  resultName: { color: '#E5E7EB', fontSize: 15, fontWeight: '600' },
-  resultMeta: { color: '#94A3B8', fontSize: 12, marginTop: 2 },
-  addHint: { color: '#A5B4FC', fontWeight: '600' },
+  heroTitle: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    marginBottom: 8,
+    letterSpacing: -0.6,
+    textAlign: 'center',
+  },
+  heroSubtitle: {
+    fontSize: 15,
+    color: 'rgba(255, 255, 255, 0.95)',
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+
+  typeRow: { 
+    flexDirection: 'row', 
+    flexWrap: 'wrap',
+    gap: 8, 
+    paddingHorizontal: 20, 
+    paddingVertical: 16 
+  },
+  chip: { 
+    paddingVertical: 10, 
+    paddingHorizontal: 16, 
+    borderRadius: 20,
+    borderWidth: 1.5,
+  },
+  chipText: { 
+    fontWeight: '700', 
+    fontSize: 14,
+    letterSpacing: 0.3,
+  },
+
+  searchRow: { 
+    flexDirection: 'row', 
+    gap: 8, 
+    paddingHorizontal: 20, 
+    marginBottom: 16 
+  },
+  search: {
+    flex: 1,
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    fontSize: 16,
+    borderWidth: 1.5,
+    fontWeight: '600',
+  },
+  searchBtn: { 
+    borderRadius: 20, 
+    paddingHorizontal: 20, 
+    justifyContent: 'center',
+    minWidth: 56,
+    alignItems: 'center',
+  },
+  searchText: { 
+    fontSize: 20,
+  },
+  scanBtn: { 
+    borderRadius: 20, 
+    paddingHorizontal: 20, 
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    minWidth: 56,
+    alignItems: 'center',
+  },
+  scanText: { 
+    fontSize: 20,
+  },
+
+  listContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+  },
+  listContentDesktop: {
+    maxWidth: 900,
+    alignSelf: 'center',
+    width: '100%',
+  },
+  emptyBox: {
+    marginTop: 20,
+    borderRadius: 24,
+    padding: 40,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+  },
+  emptyText: { 
+    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  resultItem: {
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1.5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  resultName: { 
+    fontSize: 16, 
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  resultMeta: { 
+    fontSize: 13, 
+    fontWeight: '600',
+  },
+  addBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+  },
+  addHint: { 
+    fontWeight: '700',
+    fontSize: 13,
+  },
 
   selectedBox: {
-    marginTop: 12,
-    marginHorizontal: 16,
-    marginBottom: 16,
-    backgroundColor: '#0F172A',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(148,163,184,0.25)'
+    borderTopWidth: 1.5,
+    paddingTop: 16,
+    maxHeight: '50%',
   },
-  selectedTitle: { color: '#CBD5E1', fontWeight: '700', marginBottom: 6 },
-  selRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 },
-  selName: { color: '#E5E7EB', fontWeight: '600' },
-  selMeta: { color: '#94A3B8', fontSize: 12, marginTop: 2 },
+  selectedScroll: {
+    paddingHorizontal: 20,
+  },
+  selectedTitle: { 
+    fontWeight: '800', 
+    marginBottom: 12,
+    fontSize: 17,
+    letterSpacing: -0.2,
+  },
+  selCard: {
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1.5,
+  },
+  selHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  selName: { 
+    fontWeight: '700',
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  selMeta: { 
+    fontSize: 13, 
+    fontWeight: '600',
+  },
+  removeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+  },
+  removeText: {
+    fontSize: 22,
+    fontWeight: '800',
+    lineHeight: 22,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
   gramsInput: {
-    width: 72,
-    backgroundColor: '#0B1220',
-    borderWidth: 1,
-    borderColor: 'rgba(148,163,184,0.35)',
-    borderRadius: 10,
+    width: 70,
+    borderWidth: 1.5,
+    borderRadius: 14,
     paddingVertical: 8,
-    paddingHorizontal: 10,
-    color: '#E5E7EB',
-    textAlign: 'right',
+    paddingHorizontal: 12,
+    textAlign: 'center',
+    fontWeight: '800',
+    fontSize: 16,
   },
-  footerRow: { marginTop: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  totalText: { color: '#F9FAFB', fontWeight: '700' },
-  saveBtn: { backgroundColor: '#4F46E5', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16 },
-  saveText: { color: '#fff', fontWeight: '600' },
+  quickRow: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 6,
+  },
+  quickBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1.5,
+  },
+  quickText: {
+    fontWeight: '700',
+    fontSize: 13,
+  },
+
+  footer: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 20,
+    borderTopWidth: 1.5,
+    gap: 12,
+  },
+  totalCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1.5,
+  },
+  totalLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  totalText: { 
+    fontWeight: '900',
+    fontSize: 22,
+    letterSpacing: -0.5,
+  },
+  saveButton: {
+    width: '100%',
+  },
 });

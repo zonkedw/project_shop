@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, TouchableOpacity, Platform, Animated as RNAnimated } from 'react-native';
+import { useTheme } from '../hooks/useTheme';
 
 // Безопасный импорт reanimated
 let Reanimated;
@@ -33,20 +34,30 @@ export default function AnimatedCard({
   index = 0,
   ...props 
 }) {
+  const { theme, isDark } = useTheme();
   const Component = onPress ? TouchableOpacity : View;
+
+  const baseCardStyle = [
+    styles.card,
+    {
+      backgroundColor: theme.surface,
+      borderColor: theme.borderLight,
+      shadowColor: isDark ? theme.shadow.md : theme.shadow.sm,
+    },
+  ];
 
   // Используем reanimated на мобильных платформах
   if (Platform.OS !== 'web' && Reanimated && useSharedValue) {
     const opacity = useSharedValue(0);
     const translateY = useSharedValue(50);
-    const scale = useSharedValue(0.9);
+    const scale = useSharedValue(0.96);
 
     useEffect(() => {
       const timer = setTimeout(() => {
         opacity.value = withTiming(1, { duration: 400 });
-        translateY.value = withSpring(0, { damping: 15, stiffness: 100 });
-        scale.value = withSpring(1, { damping: 15, stiffness: 100 });
-      }, delay + index * 50);
+        translateY.value = withSpring(0, { damping: 16, stiffness: 120 });
+        scale.value = withSpring(1, { damping: 16, stiffness: 120 });
+      }, delay + index * 60);
 
       return () => clearTimeout(timer);
     }, []);
@@ -64,9 +75,9 @@ export default function AnimatedCard({
     return (
       <Reanimated.View style={[styles.container, animatedStyle]}>
         <Component
-          style={[styles.card, style]}
+          style={[baseCardStyle, style]}
           onPress={onPress}
-          activeOpacity={0.8}
+          activeOpacity={0.9}
           {...props}
         >
           {children}
@@ -78,7 +89,7 @@ export default function AnimatedCard({
   // Fallback для web - используем стандартный Animated API
   const opacity = useRef(new RNAnimated.Value(0)).current;
   const translateY = useRef(new RNAnimated.Value(50)).current;
-  const scale = useRef(new RNAnimated.Value(0.9)).current;
+  const scale = useRef(new RNAnimated.Value(0.96)).current;
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -90,18 +101,18 @@ export default function AnimatedCard({
         }),
         RNAnimated.spring(translateY, {
           toValue: 0,
-          damping: 15,
-          stiffness: 100,
+          damping: 16,
+          stiffness: 120,
           useNativeDriver: true,
         }),
         RNAnimated.spring(scale, {
           toValue: 1,
-          damping: 15,
-          stiffness: 100,
+          damping: 16,
+          stiffness: 120,
           useNativeDriver: true,
         }),
       ]).start();
-    }, delay + index * 50);
+    }, delay + index * 60);
 
     return () => clearTimeout(timer);
   }, []);
@@ -117,9 +128,9 @@ export default function AnimatedCard({
   return (
     <RNAnimated.View style={[styles.container, animatedStyle]}>
       <Component
-        style={[styles.card, style]}
+        style={[baseCardStyle, style]}
         onPress={onPress}
-        activeOpacity={0.8}
+        activeOpacity={0.9}
         {...props}
       >
         {children}
@@ -130,20 +141,18 @@ export default function AnimatedCard({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 12,
+    marginBottom: 16,
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 20,
-    shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 10,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOpacity: 0.26,
+    shadowRadius: 24,
+    elevation: 6,
+    borderWidth: 1.5,
   },
 });
-

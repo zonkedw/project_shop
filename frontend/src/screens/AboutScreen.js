@@ -1,125 +1,208 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
+  Animated as RNAnimated,
+  TouchableOpacity,
+  useWindowDimensions,
+  Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../hooks/useTheme';
 import AnimatedCard from '../components/AnimatedCard';
-import { colors } from '../theme/colors';
 
 export default function AboutScreen({ navigation }) {
+  const { theme, isDark } = useTheme();
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
+  const isDesktop = width >= 1024;
+
+  const fade = useRef(new RNAnimated.Value(0)).current;
+  const slide = useRef(new RNAnimated.Value(30)).current;
+
+  useEffect(() => {
+    RNAnimated.parallel([
+      RNAnimated.timing(fade, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      RNAnimated.spring(slide, {
+        toValue: 0,
+        tension: 50,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
   const team = [
-    { name: 'Качкалов Максим Олегович', role: 'Backend разработка' },
-    { name: 'Чернышова Варвара Юрьевна', role: 'Frontend разработка' },
-    { name: 'Шпитонков Константин Александрович', role: 'Дизайн и UX' },
+    { name: 'AI Engine', role: 'OpenAI GPT-4', icon: '🤖', description: 'Интеллектуальный движок для персонализации' },
+    { name: 'Backend', role: 'Node.js + Express', icon: '⚙️', description: 'Надёжный и быстрый сервер' },
+    { name: 'Frontend', role: 'React Native + Expo', icon: '📱', description: 'Кроссплатформенное приложение' },
+    { name: 'Database', role: 'PostgreSQL', icon: '🗄️', description: 'Безопасное хранение данных' },
   ];
 
-  const technologies = [
-    { name: 'React Native + Expo', description: 'Кроссплатформенная разработка мобильных приложений' },
-    { name: 'Node.js + Express', description: 'Серверная часть с RESTful API' },
-    { name: 'PostgreSQL', description: 'Надёжная реляционная база данных' },
-    { name: 'AI Integration', description: 'Интеграция с внешними AI API для умных рекомендаций' },
-    { name: 'JWT Authentication', description: 'Безопасная аутентификация пользователей' },
+  const features = [
+    {
+      icon: '🤖',
+      title: 'AI-ассистент',
+      desc: 'Умный помощник, который знает ваши цели и прогресс',
+      gradient: theme.gradients.primary,
+    },
+    {
+      icon: '🍽️',
+      title: 'Питание',
+      desc: 'Дневник, рецепты, сканер штрих-кодов',
+      gradient: theme.gradients.secondary,
+    },
+    {
+      icon: '💪',
+      title: 'Тренировки',
+      desc: 'Конструктор, библиотека упражнений, трекинг',
+      gradient: theme.gradients.success,
+    },
+    {
+      icon: '📊',
+      title: 'Аналитика',
+      desc: 'Графики прогресса и подробная статистика',
+      gradient: theme.gradients.ocean,
+    },
+  ];
+
+  const contacts = [
+    { icon: '📧', label: 'Email', value: 'support@fitpilot.ru', action: () => Linking.openURL('mailto:support@fitpilot.ru') },
+    { icon: '🌐', label: 'Сайт', value: 'fitpilot.ru', action: () => Linking.openURL('https://fitpilot.ru') },
+    { icon: '📱', label: 'Telegram', value: '@fitpilot_app', action: () => Linking.openURL('https://t.me/fitpilot_app') },
   ];
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView 
+      style={[styles.container, { backgroundColor: theme.bg }]} 
+      showsVerticalScrollIndicator={false}
+    >
       {/* Hero */}
-      <LinearGradient
-        colors={['#667EEA', '#764BA2']}
-        style={styles.hero}
-      >
-        <Text style={styles.heroTitle}>О проекте FitPilot</Text>
-        <Text style={styles.heroSubtitle}>
-          Современная платформа для управления фитнесом с искусственным интеллектом
-        </Text>
-      </LinearGradient>
-
-      <View style={styles.content}>
-        {/* Mission */}
-        <AnimatedCard index={0} style={styles.card}>
-          <Text style={styles.cardTitle}>Наша миссия</Text>
-          <Text style={styles.cardText}>
-            FitPilot создан для того, чтобы сделать фитнес доступным и персонализированным для каждого. 
-            Используя передовые технологии искусственного интеллекта, мы помогаем пользователям достигать 
-            своих целей быстрее и эффективнее.
+      <RNAnimated.View style={[{ opacity: fade, transform: [{ translateY: slide }] }]}>
+        <LinearGradient
+          colors={theme.gradients.hero}
+          style={styles.hero}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <Text style={[styles.heroTitle, { color: isDark ? '#FFFFFF' : '#1E293B' }]}>
+            О FitPilot
           </Text>
-        </AnimatedCard>
+          <Text style={[styles.heroSubtitle, { color: isDark ? 'rgba(255,255,255,0.9)' : '#475569' }]}>
+            Ваш персональный AI-тренер и нутриолог в одном приложении
+          </Text>
+        </LinearGradient>
+      </RNAnimated.View>
 
-        {/* AI Focus */}
-        <AnimatedCard index={1} style={styles.card}>
-          <LinearGradient
-            colors={['#667EEA', '#764BA2']}
-            style={styles.aiCard}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Text style={styles.aiIcon}>🤖</Text>
-            <Text style={styles.aiTitle}>Искусственный интеллект</Text>
-            <Text style={styles.aiText}>
-              Главное отличие FitPilot - это встроенный AI-помощник, который анализирует ваши данные, 
-              цели и прогресс, чтобы создавать персональные планы питания и тренировок. 
-              Наш AI постоянно учится и адаптируется под ваши потребности.
+      <View style={[styles.content, isDesktop && styles.contentDesktop]}>
+        {/* О проекте */}
+        <AnimatedCard index={0} style={styles.section}>
+          <View style={[styles.card, { backgroundColor: isDark ? theme.surface : theme.surface }]}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>
+              💡 О проекте
             </Text>
-          </LinearGradient>
+            <Text style={[styles.paragraph, { color: theme.textMuted }]}>
+              FitPilot — это современное приложение для фитнеса, которое объединяет силу искусственного интеллекта 
+              и удобные инструменты для отслеживания питания и тренировок.
+            </Text>
+            <Text style={[styles.paragraph, { color: theme.textMuted }]}>
+              Мы создали платформу, которая помогает людям достигать своих фитнес-целей через персонализированный 
+              подход и умные рекомендации на основе ваших данных и предпочтений.
+            </Text>
+          </View>
         </AnimatedCard>
 
-        {/* Team */}
-        <AnimatedCard index={2} style={styles.card}>
-          <Text style={styles.cardTitle}>Команда разработки</Text>
-          <View style={styles.teamList}>
-            {team.map((member, index) => (
-              <View key={index} style={styles.teamMember}>
-                <View style={styles.teamAvatar}>
-                  <Text style={styles.teamAvatarText}>
-                    {member.name.split(' ')[1]?.[0] || 'T'}
+        {/* Возможности */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitleMain, { color: theme.text }]}>
+            ✨ Возможности
+          </Text>
+          <View style={[
+            styles.featuresGrid,
+            isTablet && styles.featuresGridTablet,
+            isDesktop && styles.featuresGridDesktop
+          ]}>
+            {features.map((feature, index) => (
+              <AnimatedCard key={index} index={index + 1} style={styles.featureCard}>
+                <LinearGradient
+                  colors={feature.gradient}
+                  style={styles.featureGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <Text style={styles.featureIcon}>{feature.icon}</Text>
+                  <Text style={styles.featureTitle}>{feature.title}</Text>
+                  <Text style={styles.featureDesc}>{feature.desc}</Text>
+                </LinearGradient>
+              </AnimatedCard>
+            ))}
+          </View>
+        </View>
+
+        {/* Технологии */}
+        <AnimatedCard index={5} style={styles.section}>
+          <View style={[styles.card, { backgroundColor: isDark ? theme.surface : theme.surface }]}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>
+              ⚡ Технологии
+            </Text>
+            <View style={styles.teamGrid}>
+              {team.map((member, index) => (
+                <View key={index} style={[styles.teamCard, { 
+                  backgroundColor: isDark ? theme.glass.weak : theme.bgSecondary,
+                  borderColor: theme.borderLight 
+                }]}>
+                  <Text style={styles.teamIcon}>{member.icon}</Text>
+                  <Text style={[styles.teamName, { color: theme.text }]}>{member.name}</Text>
+                  <Text style={[styles.teamRole, { color: theme.primary }]}>{member.role}</Text>
+                  <Text style={[styles.teamDesc, { color: theme.textMuted }]}>{member.description}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </AnimatedCard>
+
+        {/* Контакты */}
+        <AnimatedCard index={6} style={styles.section}>
+          <View style={[styles.card, { backgroundColor: isDark ? theme.surface : theme.surface }]}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>
+              📞 Контакты
+            </Text>
+            {contacts.map((contact, index) => (
+              <TouchableOpacity 
+                key={index}
+                style={[styles.contactRow, { borderBottomColor: theme.border }]}
+                onPress={contact.action}
+              >
+                <Text style={styles.contactIcon}>{contact.icon}</Text>
+                <View style={styles.contactInfo}>
+                  <Text style={[styles.contactLabel, { color: theme.textMuted }]}>
+                    {contact.label}
+                  </Text>
+                  <Text style={[styles.contactValue, { color: theme.primary }]}>
+                    {contact.value}
                   </Text>
                 </View>
-                <View style={styles.teamInfo}>
-                  <Text style={styles.teamName}>{member.name}</Text>
-                  <Text style={styles.teamRole}>{member.role}</Text>
-                </View>
-              </View>
+                <Text style={[styles.contactArrow, { color: theme.textMuted }]}>→</Text>
+              </TouchableOpacity>
             ))}
           </View>
-          <Text style={styles.supervisor}>
-            Руководитель: Федотов Иван Вячеславович
+        </AnimatedCard>
+
+        {/* Версия */}
+        <View style={styles.version}>
+          <Text style={[styles.versionText, { color: theme.textMuted }]}>
+            FitPilot v1.0.0
           </Text>
-        </AnimatedCard>
-
-        {/* Technologies */}
-        <AnimatedCard index={3} style={styles.card}>
-          <Text style={styles.cardTitle}>Технологии</Text>
-          <View style={styles.techList}>
-            {technologies.map((tech, index) => (
-              <View key={index} style={styles.techItem}>
-                <Text style={styles.techName}>{tech.name}</Text>
-                <Text style={styles.techDescription}>{tech.description}</Text>
-              </View>
-            ))}
-          </View>
-        </AnimatedCard>
-
-        {/* Project Info */}
-        <AnimatedCard index={4} style={styles.card}>
-          <Text style={styles.cardTitle}>Информация о проекте</Text>
-          <View style={styles.infoList}>
-            <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>Модуль:</Text>
-              <Text style={styles.infoValue}>ПМ.09 Проектирование, разработка и оптимизация веб-приложений</Text>
-            </View>
-            <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>Группа:</Text>
-              <Text style={styles.infoValue}>22ИС4-2</Text>
-            </View>
-            <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>Срок сдачи:</Text>
-              <Text style={styles.infoValue}>19 декабря 2025</Text>
-            </View>
-          </View>
-        </AnimatedCard>
+          <Text style={[styles.versionText, { color: theme.textMuted }]}>
+            © 2025 FitPilot. Все права защищены.
+          </Text>
+        </View>
       </View>
     </ScrollView>
   );
@@ -128,152 +211,171 @@ export default function AboutScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   hero: {
-    paddingTop: 100,
-    paddingBottom: 60,
-    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 40,
+    paddingHorizontal: 28,
     alignItems: 'center',
   },
   heroTitle: {
-    fontSize: 42,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    fontSize: 36,
+    fontWeight: '900',
+    letterSpacing: -0.8,
+    marginBottom: 12,
     textAlign: 'center',
-    marginBottom: 16,
-    letterSpacing: -1,
   },
   heroSubtitle: {
-    fontSize: 18,
-    color: 'rgba(255, 255, 255, 0.95)',
+    fontSize: 17,
+    lineHeight: 26,
     textAlign: 'center',
-    lineHeight: 28,
+    maxWidth: 600,
+    fontWeight: '500',
   },
   content: {
-    padding: 24,
+    padding: 20,
+  },
+  contentDesktop: {
+    maxWidth: 1000,
+    alignSelf: 'center',
+    width: '100%',
+  },
+  section: {
+    marginBottom: 24,
   },
   card: {
-    marginBottom: 24,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 24,
+    borderRadius: 28,
+    padding: 28,
+    borderWidth: 1.5,
+    borderColor: 'rgba(99, 102, 241, 0.15)',
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8,
   },
-  cardTitle: {
+  sectionTitle: {
     fontSize: 24,
-    fontWeight: '700',
-    color: colors.textDark,
+    fontWeight: '800',
     marginBottom: 16,
+    letterSpacing: -0.5,
   },
-  cardText: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    lineHeight: 26,
-  },
-  aiCard: {
-    borderRadius: 20,
-    padding: 32,
-    alignItems: 'center',
-  },
-  aiIcon: {
-    fontSize: 64,
-    marginBottom: 20,
-  },
-  aiTitle: {
+  sectionTitleMain: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#FFFFFF',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  aiText: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.95)',
-    lineHeight: 26,
-    textAlign: 'center',
-  },
-  teamList: {
-    marginBottom: 24,
-  },
-  teamMember: {
-    flexDirection: 'row',
-    alignItems: 'center',
     marginBottom: 20,
+    letterSpacing: -0.6,
+    paddingHorizontal: 8,
   },
-  teamAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primary,
+  paragraph: {
+    fontSize: 16,
+    lineHeight: 26,
+    marginBottom: 14,
+  },
+  featuresGrid: {
+    gap: 16,
+  },
+  featuresGridTablet: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  featuresGridDesktop: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  featureCard: {
+    marginBottom: 0,
+  },
+  featureGradient: {
+    borderRadius: 24,
+    padding: 24,
+    minHeight: 180,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
   },
-  teamAvatarText: {
+  featureIcon: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  featureTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#FFFFFF',
+    marginBottom: 8,
+    letterSpacing: -0.3,
   },
-  teamInfo: {
+  featureDesc: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.9)',
+    textAlign: 'center',
+    lineHeight: 21,
+  },
+  teamGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
+  teamCard: {
     flex: 1,
+    minWidth: '47%',
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+    borderWidth: 1.5,
+  },
+  teamIcon: {
+    fontSize: 36,
+    marginBottom: 12,
   },
   teamName: {
     fontSize: 18,
-    fontWeight: '700',
-    color: colors.textDark,
+    fontWeight: '800',
     marginBottom: 4,
+    letterSpacing: -0.2,
   },
   teamRole: {
     fontSize: 14,
-    color: colors.textSecondary,
-  },
-  supervisor: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-  },
-  techList: {
-    gap: 16,
-  },
-  techItem: {
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  techName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.textDark,
+    fontWeight: '600',
     marginBottom: 8,
   },
-  techDescription: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    lineHeight: 22,
+  teamDesc: {
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 19,
   },
-  infoList: {
-    gap: 16,
-  },
-  infoItem: {
+  contactRow: {
     flexDirection: 'row',
-    paddingBottom: 16,
+    alignItems: 'center',
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
   },
-  infoLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.textDark,
-    minWidth: 120,
+  contactIcon: {
+    fontSize: 28,
+    marginRight: 16,
   },
-  infoValue: {
-    fontSize: 16,
-    color: colors.textSecondary,
+  contactInfo: {
     flex: 1,
   },
+  contactLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  contactValue: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  contactArrow: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  version: {
+    paddingVertical: 32,
+    alignItems: 'center',
+    gap: 8,
+  },
+  versionText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
 });
-

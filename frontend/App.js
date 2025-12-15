@@ -2,6 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
+import ErrorBoundary from './src/components/ErrorBoundary';
 
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
@@ -15,6 +16,7 @@ import WorkoutBuilderScreen from './src/screens/WorkoutBuilderScreen';
 import WorkoutDetailsScreen from './src/screens/WorkoutDetailsScreen';
 import ExerciseLibraryScreen from './src/screens/ExerciseLibraryScreen';
 import LandingScreen from './src/screens/LandingScreen';
+import TestScreen from './src/screens/TestScreen';
 import AboutScreen from './src/screens/AboutScreen';
 import FeaturesScreen from './src/screens/FeaturesScreen';
 import ProgramsScreen from './src/screens/ProgramsScreen';
@@ -25,7 +27,7 @@ const Stack = createNativeStackNavigator();
 
 export default function App() {
   return (
-    <>
+    <ErrorBoundary>
       <StatusBar style="auto" />
       <NavigationContainer>
         <Stack.Navigator
@@ -121,6 +123,6 @@ export default function App() {
           />
         </Stack.Navigator>
       </NavigationContainer>
-    </>
+    </ErrorBoundary>
   );
 }

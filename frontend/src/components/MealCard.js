@@ -1,10 +1,30 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, useColorScheme } from 'react-native';
+
+const getDarkPalette = () => ({
+  card: 'rgba(31, 32, 71, 0.6)',
+  border: 'rgba(99, 102, 241, 0.3)',
+  text: '#F8FAFC',
+  muted: '#CBD5E1',
+  primary: '#6366F1',
+});
+
+const getLightPalette = () => ({
+  card: '#FFFFFF',
+  border: '#E2E8F0',
+  text: '#0F172A',
+  muted: '#64748B',
+  primary: '#6366F1',
+});
 
 /**
- * Компонент карточки приёма пищи
+ * Компонент карточки приёма пищи с поддержкой темной/светлой темы
  */
 export default function MealCard({ meal, onPress, style }) {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  const palette = isDark ? getDarkPalette() : getLightPalette();
+
   const getMealTypeLabel = (type) => {
     const labels = {
       breakfast: 'Завтрак',
@@ -27,33 +47,61 @@ export default function MealCard({ meal, onPress, style }) {
 
   return (
     <TouchableOpacity 
-      style={[styles.container, style]} 
+      style={[
+        styles.container, 
+        { 
+          backgroundColor: palette.card,
+          borderColor: palette.border 
+        },
+        style
+      ]} 
       onPress={onPress}
       activeOpacity={0.7}
     >
       <View style={styles.header}>
         <Text style={styles.icon}>{getMealIcon(meal.meal_type)}</Text>
         <View style={styles.headerText}>
-          <Text style={styles.title}>{getMealTypeLabel(meal.meal_type)}</Text>
+          <Text style={[styles.title, { color: palette.text }]}>
+            {getMealTypeLabel(meal.meal_type)}
+          </Text>
           {meal.notes && (
-            <Text style={styles.notes} numberOfLines={1}>{meal.notes}</Text>
+            <Text style={[styles.notes, { color: palette.muted }]} numberOfLines={1}>
+              {meal.notes}
+            </Text>
           )}
         </View>
-        <Text style={styles.calories}>{Math.round(meal.total_calories || 0)} ккал</Text>
+        <Text style={[styles.calories, { color: palette.primary }]}>
+          {Math.round(meal.total_calories || 0)} ккал
+        </Text>
       </View>
       
       <View style={styles.macros}>
-        <View style={styles.macroItem}>
-          <Text style={styles.macroLabel}>Б</Text>
-          <Text style={styles.macroValue}>{Math.round(meal.total_protein || 0)}г</Text>
+        <View style={[styles.macroItem, { 
+          backgroundColor: isDark ? 'rgba(99, 102, 241, 0.15)' : '#F8FAFC',
+          borderColor: palette.border 
+        }]}>
+          <Text style={[styles.macroLabel, { color: palette.muted }]}>Б</Text>
+          <Text style={[styles.macroValue, { color: palette.text }]}>
+            {Math.round(meal.total_protein || 0)}г
+          </Text>
         </View>
-        <View style={styles.macroItem}>
-          <Text style={styles.macroLabel}>Ж</Text>
-          <Text style={styles.macroValue}>{Math.round(meal.total_fats || 0)}г</Text>
+        <View style={[styles.macroItem, { 
+          backgroundColor: isDark ? 'rgba(99, 102, 241, 0.15)' : '#F8FAFC',
+          borderColor: palette.border 
+        }]}>
+          <Text style={[styles.macroLabel, { color: palette.muted }]}>Ж</Text>
+          <Text style={[styles.macroValue, { color: palette.text }]}>
+            {Math.round(meal.total_fats || 0)}г
+          </Text>
         </View>
-        <View style={styles.macroItem}>
-          <Text style={styles.macroLabel}>У</Text>
-          <Text style={styles.macroValue}>{Math.round(meal.total_carbs || 0)}г</Text>
+        <View style={[styles.macroItem, { 
+          backgroundColor: isDark ? 'rgba(99, 102, 241, 0.15)' : '#F8FAFC',
+          borderColor: palette.border 
+        }]}>
+          <Text style={[styles.macroLabel, { color: palette.muted }]}>У</Text>
+          <Text style={[styles.macroValue, { color: palette.text }]}>
+            {Math.round(meal.total_carbs || 0)}г
+          </Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -62,58 +110,64 @@ export default function MealCard({ meal, onPress, style }) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1.5,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   icon: {
-    fontSize: 24,
-    marginRight: 12,
+    fontSize: 28,
+    marginRight: 14,
   },
   headerText: {
     flex: 1,
   },
   title: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.2,
   },
   notes: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 2,
+    fontSize: 13,
+    marginTop: 3,
+    fontWeight: '500',
   },
   calories: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#4F46E5',
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.2,
   },
   macros: {
     flexDirection: 'row',
-    gap: 16,
+    gap: 10,
   },
   macroItem: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1,
   },
   macroLabel: {
-    fontSize: 12,
-    color: '#666',
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
   },
   macroValue: {
-    fontSize: 14,
-    color: '#111',
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
   },
 });
-

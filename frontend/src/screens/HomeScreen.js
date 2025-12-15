@@ -16,21 +16,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { nutritionAPI, workoutsAPI, extractData } from '../services/api';
 import { useApi } from '../hooks/useApi';
+import { useTheme } from '../hooks/useTheme';
 import ErrorMessage from '../components/ErrorMessage';
 import AnimatedCard from '../components/AnimatedCard';
 import Header from '../components/Header';
-
-const palette = {
-  bg: '#0B1220',
-  panel: '#0F172A',
-  card: '#111827',
-  border: '#1F2937',
-  primary: '#22D3EE',
-  accent: '#7C3AED',
-  accentGreen: '#22C55E',
-  text: '#E2E8F0',
-  muted: '#94A3B8',
-};
 
 // Безопасный импорт reanimated
 let Reanimated;
@@ -50,6 +39,10 @@ try {
 }
 
 export default function HomeScreen({ navigation }) {
+  const { theme, isDark } = useTheme();
+  const palette = theme; // для обратной совместимости со старым кодом
+  const styles = createStyles(palette); // создаём стили с учётом темы
+  
   const [user, setUser] = useState(null);
   const [todayStats, setTodayStats] = useState({
     calories: 0,
@@ -68,14 +61,14 @@ export default function HomeScreen({ navigation }) {
       tag: 'AI',
       title: 'AI-ассистент',
       description: 'Ответы без шаблонов, рационы и тренировки с учётом ваших данных.',
-      accent: palette.primary,
+      accent: theme.primary,
       screen: 'Chat',
     },
     {
       tag: 'Food',
       title: 'Питание',
       description: 'Контроль дефицита/набора, баланс БЖУ, продукты РФ.',
-      accent: palette.accent,
+      accent: theme.accent,
       screen: 'Nutrition',
     },
     {
@@ -89,7 +82,7 @@ export default function HomeScreen({ navigation }) {
       tag: 'Stats',
       title: 'Прогресс',
       description: 'Динамика веса, калорий и нагрузок без лишнего визуального шума.',
-      accent: '#F59E0B',
+      accent: '#FBBF24',
       screen: 'Profile',
     },
   ];
@@ -241,8 +234,14 @@ export default function HomeScreen({ navigation }) {
     }).start();
   };
 
+  const heroGradient = isDark 
+    ? ['#6366F1', '#8B5CF6', '#0F0F23']
+    : ['#E0E7FF', '#DDD6FE', '#F8FAFC'];
+
+  const ctaGradient = ['#6366F1', '#EC4899'];
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: palette.bg }]}>
       <Header navigation={navigation} user={user} />
       
       <ScrollView
@@ -266,7 +265,7 @@ export default function HomeScreen({ navigation }) {
           isDesktop && styles.heroSectionDesktop
         ]}>
           <LinearGradient
-            colors={[palette.bg, palette.panel, palette.bg]}
+            colors={heroGradient}
             style={styles.heroGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -276,11 +275,13 @@ export default function HomeScreen({ navigation }) {
             isTablet && styles.heroContentTablet,
             isDesktop && styles.heroContentDesktop
           ]}>
-              <Text style={styles.heroGreeting}>{getGreeting()},</Text>
-              <Text style={styles.heroTitle}>
+              <Text style={[styles.heroGreeting, { color: isDark ? '#FFFFFF' : '#FFFFFF' }]}>
+                {getGreeting()},
+              </Text>
+              <Text style={[styles.heroTitle, { color: '#FFFFFF' }]}>
                 {user?.username || 'спортсмен'}
               </Text>
-              <Text style={styles.heroSubtitle}>
+              <Text style={[styles.heroSubtitle, { color: 'rgba(255,255,255,0.9)' }]}>
                 Цифровой тренер и нутриолог. Конкретные планы питания и тренировок под ваши цели.
               </Text>
 
@@ -306,18 +307,25 @@ export default function HomeScreen({ navigation }) {
           </LinearGradient>
         </RNAnimated.View>
 
-        {/* Progress Card + sections */}
+          {/* Progress Card + sections */}
         <RNAnimated.View style={[styles.content, blocksAnimatedStyle]}>
-          <AnimatedCard index={0} style={styles.progressCard}>
+          <AnimatedCard index={0} style={[styles.progressCard, { 
+            backgroundColor: isDark ? 'rgba(31, 32, 71, 0.6)' : palette.card,
+            borderColor: palette.border 
+          }]}>
             <View style={styles.progressHeader}>
               <View>
-                <Text style={styles.progressTitle}>Ваш прогресс сегодня</Text>
-                <Text style={styles.progressSubtitle}>
+                <Text style={[styles.progressTitle, { color: palette.text }]}>
+                  Ваш прогресс сегодня
+                </Text>
+                <Text style={[styles.progressSubtitle, { color: palette.muted }]}>
                   {todayStats.calories} / {todayStats.targetCalories} ккал
                 </Text>
               </View>
-              <View style={styles.progressCircle}>
-                <Text style={styles.progressPercent}>{Math.round(progressPercent)}%</Text>
+              <View style={[styles.progressCircle, { borderColor: palette.primary }]}>
+                <Text style={[styles.progressPercent, { color: palette.primary }]}>
+                  {Math.round(progressPercent)}%
+                </Text>
               </View>
             </View>
             <View style={styles.progressBarContainer}>
@@ -331,23 +339,27 @@ export default function HomeScreen({ navigation }) {
             </View>
             <View style={styles.progressFooter}>
               <View style={styles.progressItem}>
-                <Text style={styles.progressItemLabel}>Осталось</Text>
-                <Text style={styles.progressItemValue}>
+                <Text style={[styles.progressItemLabel, { color: palette.muted }]}>Осталось</Text>
+                <Text style={[styles.progressItemValue, { color: palette.text }]}>
                   {Math.max(0, todayStats.targetCalories - todayStats.calories)} ккал
                 </Text>
               </View>
-              <View style={styles.progressDivider} />
+              <View style={[styles.progressDivider, { backgroundColor: palette.border }]} />
               <View style={styles.progressItem}>
-                <Text style={styles.progressItemLabel}>Съедено</Text>
-                <Text style={styles.progressItemValue}>{todayStats.calories} ккал</Text>
+                <Text style={[styles.progressItemLabel, { color: palette.muted }]}>Съедено</Text>
+                <Text style={[styles.progressItemValue, { color: palette.text }]}>
+                  {todayStats.calories} ккал
+                </Text>
               </View>
             </View>
           </AnimatedCard>
 
           {/* Features Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Возможности FitPilot</Text>
-            <Text style={styles.sectionSubtitle}>
+            <Text style={[styles.sectionTitle, { color: palette.text }]}>
+              Возможности FitPilot
+            </Text>
+            <Text style={[styles.sectionSubtitle, { color: palette.muted }]}>
               Все инструменты для достижения ваших фитнес-целей в одном месте
             </Text>
 
@@ -372,12 +384,22 @@ export default function HomeScreen({ navigation }) {
                       { transform: [{ scale: featureScales[index] }] },
                     ]}
                   >
-                    <View style={[styles.featureCard, { borderColor: feature.accent }]}>
+                    <View style={[
+                      styles.featureCard, 
+                      { 
+                        borderColor: feature.accent,
+                        backgroundColor: isDark ? 'rgba(31, 32, 71, 0.6)' : palette.card
+                      }
+                    ]}>
                       <View style={[styles.featureTag, { backgroundColor: `${feature.accent}22` }]}>
                         <Text style={[styles.featureTagText, { color: feature.accent }]}>{feature.tag}</Text>
                       </View>
-                      <Text style={styles.featureTitle}>{feature.title}</Text>
-                      <Text style={styles.featureDescription}>{feature.description}</Text>
+                      <Text style={[styles.featureTitle, { color: palette.text }]}>
+                        {feature.title}
+                      </Text>
+                      <Text style={[styles.featureDescription, { color: palette.muted }]}>
+                        {feature.description}
+                      </Text>
                       <View style={[styles.featureArrow, { backgroundColor: `${feature.accent}15` }]}>
                         <Text style={[styles.featureArrowText, { color: feature.accent }]}>Перейти</Text>
                       </View>
@@ -390,7 +412,7 @@ export default function HomeScreen({ navigation }) {
 
           {/* Stats Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Статистика</Text>
+            <Text style={[styles.sectionTitle, { color: palette.text }]}>Статистика</Text>
             <View style={[
               styles.statsRow,
               isSmallPhone && styles.statsRowStacked
@@ -400,10 +422,15 @@ export default function HomeScreen({ navigation }) {
                 onPressOut={() => pressTo(statScales[0], 1)}
               >
                 <AnimatedCard index={5} style={[styles.statCard, { transform: [{ scale: statScales[0] }] }]}>
-                  <View style={styles.statGradient}>
-                    <Text style={styles.statLabel}>Калории сегодня</Text>
-                    <Text style={styles.statValue}>{todayStats.calories}</Text>
-                    <Text style={styles.statHint}>Цель {todayStats.targetCalories}</Text>
+                  <View style={[styles.statGradient, { 
+                    backgroundColor: isDark ? 'rgba(31, 32, 71, 0.6)' : palette.card,
+                    borderColor: palette.border 
+                  }]}>
+                    <Text style={[styles.statLabel, { color: palette.muted }]}>Калории сегодня</Text>
+                    <Text style={[styles.statValue, { color: palette.text }]}>{todayStats.calories}</Text>
+                    <Text style={[styles.statHint, { color: palette.muted }]}>
+                      Цель {todayStats.targetCalories}
+                    </Text>
                   </View>
                 </AnimatedCard>
               </Pressable>
@@ -413,10 +440,13 @@ export default function HomeScreen({ navigation }) {
                 onPressOut={() => pressTo(statScales[1], 1)}
               >
                 <AnimatedCard index={6} style={[styles.statCard, { transform: [{ scale: statScales[1] }] }]}>
-                  <View style={styles.statGradient}>
-                    <Text style={styles.statLabel}>Тренировки</Text>
-                    <Text style={styles.statValue}>{todayStats.workouts}</Text>
-                    <Text style={styles.statHint}>За сегодня</Text>
+                  <View style={[styles.statGradient, { 
+                    backgroundColor: isDark ? 'rgba(31, 32, 71, 0.6)' : palette.card,
+                    borderColor: palette.border 
+                  }]}>
+                    <Text style={[styles.statLabel, { color: palette.muted }]}>Тренировки</Text>
+                    <Text style={[styles.statValue, { color: palette.text }]}>{todayStats.workouts}</Text>
+                    <Text style={[styles.statHint, { color: palette.muted }]}>За сегодня</Text>
                   </View>
                 </AnimatedCard>
               </Pressable>
@@ -426,7 +456,7 @@ export default function HomeScreen({ navigation }) {
           {/* CTA Section */}
           <View style={styles.ctaSection}>
             <LinearGradient
-              colors={[palette.primary, palette.accent]}
+              colors={ctaGradient}
               style={styles.ctaCard}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
@@ -455,10 +485,9 @@ export default function HomeScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (palette) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: palette.bg,
   },
   scrollView: {
     flex: 1,
@@ -525,35 +554,39 @@ const styles = StyleSheet.create({
   },
   quickStatCard: {
     flex: 1,
-    backgroundColor: palette.card,
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 20,
+    padding: 18,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: palette.border,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
     minWidth: 160,
   },
   quickStatValue: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: palette.text,
-    marginBottom: 4,
+    fontSize: 26,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    marginBottom: 6,
+    letterSpacing: -0.4,
   },
   quickStatLabel: {
-    fontSize: 11,
-    color: palette.muted,
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.9)',
     fontWeight: '700',
   },
   content: {
     padding: 20,
   },
   progressCard: {
-    marginBottom: 32,
-    backgroundColor: palette.card,
-    borderRadius: 24,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: palette.border,
+    marginBottom: 36,
+    borderRadius: 32,
+    padding: 28,
+    borderWidth: 1.5,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
   },
   progressHeader: {
     flexDirection: 'row',
@@ -572,14 +605,19 @@ const styles = StyleSheet.create({
     color: palette.muted,
   },
   progressCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#0C1627',
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: palette.border,
+    borderWidth: 2.5,
+    borderColor: palette.primary,
+    shadowColor: palette.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 6,
   },
   progressPercent: {
     fontSize: 18,
@@ -590,17 +628,22 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   progressBarBg: {
-    height: 12,
-    backgroundColor: '#0C1627',
-    borderRadius: 6,
+    height: 16,
+    backgroundColor: 'rgba(31, 32, 71, 0.8)',
+    borderRadius: 8,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: palette.border,
+    borderWidth: 1.5,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
   },
   progressBarFill: {
     height: '100%',
     backgroundColor: palette.primary,
-    borderRadius: 6,
+    borderRadius: 8,
+    shadowColor: palette.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 12,
+    elevation: 6,
   },
   progressFooter: {
     flexDirection: 'row',
@@ -663,12 +706,15 @@ const styles = StyleSheet.create({
     width: '48%',
   },
   featureCard: {
-    borderRadius: 18,
-    padding: 20,
-    minHeight: 160,
-    borderWidth: 1,
-    borderColor: palette.border,
-    backgroundColor: palette.card,
+    borderRadius: 28,
+    padding: 24,
+    minHeight: 180,
+    borderWidth: 1.5,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
   },
   featureTag: {
     alignSelf: 'flex-start',
@@ -717,14 +763,17 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   statGradient: {
-    borderRadius: 18,
-    padding: 20,
+    borderRadius: 28,
+    padding: 24,
     alignItems: 'center',
-    minHeight: 140,
+    minHeight: 160,
     justifyContent: 'center',
-    backgroundColor: palette.card,
-    borderWidth: 1,
-    borderColor: palette.border,
+    borderWidth: 1.5,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 8,
   },
   statValue: {
     fontSize: 28,
@@ -747,12 +796,17 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   ctaCard: {
-    borderRadius: 20,
-    padding: 28,
+    borderRadius: 32,
+    padding: 36,
     alignItems: 'center',
-    backgroundColor: palette.card,
-    borderWidth: 1,
-    borderColor: palette.border,
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 24,
+    elevation: 14,
   },
   ctaTitle: {
     fontSize: 28,
@@ -769,17 +823,25 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   ctaButton: {
-    backgroundColor: palette.primary,
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 26,
-    minWidth: 200,
+    backgroundColor: 'rgba(15, 15, 35, 0.8)',
+    borderRadius: 24,
+    paddingVertical: 18,
+    paddingHorizontal: 36,
+    minWidth: 240,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   ctaButtonText: {
-    color: '#0B1220',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
     textAlign: 'center',
+    letterSpacing: 0.5,
   },
   errorContainer: {
     marginTop: 16,

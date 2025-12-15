@@ -6,9 +6,11 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
+  useWindowDimensions,
 } from 'react-native';
 import { workoutsAPI, extractData } from '../services/api';
 import { useApi } from '../hooks/useApi';
+import { useTheme } from '../hooks/useTheme';
 import LoadingIndicator from '../components/LoadingIndicator';
 import ErrorMessage from '../components/ErrorMessage';
 import StatCard from '../components/StatCard';
@@ -16,15 +18,7 @@ import WorkoutCard from '../components/WorkoutCard';
 import { cache } from '../utils/cache';
 import { LinearGradient } from 'expo-linear-gradient';
 import AnimatedCard from '../components/AnimatedCard';
-
-const palette = {
-  bg: '#0B1220',
-  card: '#111827',
-  border: '#1F2937',
-  primary: '#22D3EE',
-  text: '#E2E8F0',
-  muted: '#94A3B8',
-};
+import GradientButton from '../components/GradientButton';
 
 const featuredPrograms = [
   {
@@ -57,6 +51,12 @@ const featuredPrograms = [
 ];
 
 export default function WorkoutsScreen({ navigation }) {
+  const { theme, isDark } = useTheme();
+  const palette = theme; // для обратной совместимости
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
+  const isDesktop = width >= 1024;
+
   const [sessions, setSessions] = useState([]);
   const [stats, setStats] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -138,26 +138,33 @@ export default function WorkoutsScreen({ navigation }) {
     navigation.navigate('WorkoutBuilder');
   };
 
+  const heroGradient = isDark 
+    ? ['#6366F1', '#8B5CF6', '#0F0F23']
+    : ['#6366F1', '#8B5CF6', '#F8FAFC'];
+
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: palette.bg }]}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.primary} />
       }
     >
       <LinearGradient
-        colors={['#0EA5E9', '#2563EB', '#0F172A']}
+        colors={heroGradient}
         style={styles.hero}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
-        <Text style={styles.heroTitle}>Тренировки</Text>
+        <Text style={styles.heroTitle}>💪 Тренировки</Text>
         <Text style={styles.heroSubtitle}>
           Выбирайте готовые планы или собирайте свои. AI подскажет нагрузки.
         </Text>
-        <TouchableOpacity style={styles.startButton} onPress={handleStartWorkout}>
-          <Text style={styles.startButtonText}>+ Начать тренировку</Text>
-        </TouchableOpacity>
+        <GradientButton
+          title="+ Начать тренировку"
+          onPress={handleStartWorkout}
+          variant="primary"
+          style={styles.startButton}
+        />
       </LinearGradient>
 
       {error && (
@@ -174,7 +181,7 @@ export default function WorkoutsScreen({ navigation }) {
       )}
 
       {stats && (
-        <View style={styles.statsContainer}>
+        <View style={[styles.statsContainer, isTablet && styles.statsContainerTablet]}>
           <StatCard
             icon="💪"
             label="Тренировок"
@@ -187,11 +194,17 @@ export default function WorkoutsScreen({ navigation }) {
             value={`${Math.round(stats.total_minutes || 0)} мин`}
             subtitle="Всего"
           />
+          <StatCard
+            icon="🔥"
+            label="Объём"
+            value={`${Math.round((stats.total_volume_kg || 0) / 1000)} т`}
+            subtitle="Поднято"
+          />
         </View>
       )}
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Последние тренировки</Text>
+        <Text style={[styles.sectionTitle, { color: palette.text }]}>Последние тренировки</Text>
 
         {sessions.length > 0 ? (
           sessions.map((session) => (
@@ -204,40 +217,73 @@ export default function WorkoutsScreen({ navigation }) {
             />
           ))
         ) : (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>Нет записанных тренировок</Text>
-            <TouchableOpacity style={styles.emptyButton} onPress={handleStartWorkout}>
-              <Text style={styles.emptyButtonText}>Начать первую тренировку</Text>
-            </TouchableOpacity>
+          <View style={[styles.emptyState, { 
+            backgroundColor: isDark ? 'rgba(31, 32, 71, 0.6)' : '#FFFFFF',
+            borderColor: palette.border 
+          }]}>
+            <Text style={[styles.emptyText, { color: palette.muted }]}>
+              Нет записанных тренировок
+            </Text>
+            <GradientButton
+              title="Начать первую тренировку"
+              onPress={handleStartWorkout}
+              variant="primary"
+              style={styles.emptyButton}
+            />
           </View>
         )}
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Рекомендуем начать</Text>
-        <View style={styles.programGrid}>
+        <Text style={[styles.sectionTitle, { color: palette.text }]}>Рекомендуем начать</Text>
+        <View style={[
+          styles.programGrid,
+          isTablet && styles.programGridTablet,
+          isDesktop && styles.programGridDesktop
+        ]}>
           {featuredPrograms.map((p, idx) => (
             <AnimatedCard
               key={`${p.title}-${idx}`}
               index={idx}
               onPress={() => navigation.navigate('ProgramDetail', p)}
-              style={styles.programCard}
+              style={[
+                styles.programCard,
+                { 
+                  backgroundColor: isDark ? 'rgba(31, 32, 71, 0.6)' : palette.card,
+                  borderColor: isDark ? 'rgba(99, 102, 241, 0.25)' : palette.border
+                },
+                isTablet && styles.programCardTablet,
+                isDesktop && styles.programCardDesktop
+              ]}
             >
-              <View style={styles.programTag}>
-                <Text style={styles.programTagText}>{p.tag}</Text>
+              <View style={[styles.programTag, { backgroundColor: `${palette.primary}20` }]}>
+                <Text style={[styles.programTagText, { color: palette.primary }]}>{p.tag}</Text>
               </View>
-              <Text style={styles.programTitle}>{p.title}</Text>
-              <Text style={styles.programSubtitle}>{p.subtitle}</Text>
-              <Text style={styles.programDesc}>{p.desc}</Text>
+              <Text style={[styles.programTitle, { color: palette.text }]}>{p.title}</Text>
+              <Text style={[styles.programSubtitle, { color: palette.muted }]}>{p.subtitle}</Text>
+              <Text style={[styles.programDesc, { color: palette.muted }]}>{p.desc}</Text>
               <View style={styles.programMetaRow}>
-                <Text style={styles.programMeta}>Уровень: {p.level}</Text>
-                <Text style={styles.programMeta}>Инвентарь: {p.equipment}</Text>
+                <View style={[styles.programMetaBadge, { 
+                  backgroundColor: isDark ? 'rgba(99, 102, 241, 0.15)' : '#F1F5F9',
+                  borderColor: palette.border 
+                }]}>
+                  <Text style={[styles.programMeta, { color: palette.muted }]}>📊 {p.level}</Text>
+                </View>
+                <View style={[styles.programMetaBadge, { 
+                  backgroundColor: isDark ? 'rgba(99, 102, 241, 0.15)' : '#F1F5F9',
+                  borderColor: palette.border 
+                }]}>
+                  <Text style={[styles.programMeta, { color: palette.muted }]}>🎯 {p.equipment}</Text>
+                </View>
               </View>
               <TouchableOpacity
-                style={styles.programCta}
+                style={[styles.programCta, { 
+                  backgroundColor: `${palette.primary}20`,
+                  borderColor: `${palette.primary}40`
+                }]}
                 onPress={() => navigation.navigate('ProgramDetail', p)}
               >
-                <Text style={styles.programCtaText}>Подробнее</Text>
+                <Text style={[styles.programCtaText, { color: palette.primary }]}>Подробнее</Text>
               </TouchableOpacity>
             </AnimatedCard>
           ))}
@@ -250,148 +296,143 @@ export default function WorkoutsScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: palette.bg,
   },
   hero: {
-    padding: 20,
+    padding: 28,
     paddingTop: 60,
-    paddingBottom: 32,
-    gap: 10,
+    paddingBottom: 40,
+    gap: 14,
   },
   heroTitle: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '900',
-    color: '#fff',
-    letterSpacing: -0.3,
+    color: '#FFFFFF',
+    letterSpacing: -0.6,
   },
   heroSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
-    lineHeight: 20,
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.95)',
+    lineHeight: 24,
   },
   startButton: {
-    backgroundColor: palette.primary,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
     alignSelf: 'flex-start',
-  },
-  startButtonText: {
-    color: '#0B1220',
-    fontSize: 14,
-    fontWeight: '800',
+    marginTop: 8,
   },
   errorContainer: {
-    margin: 16,
+    margin: 20,
   },
   statsContainer: {
     flexDirection: 'row',
-    padding: 12,
+    padding: 16,
     gap: 12,
   },
+  statsContainerTablet: {
+    padding: 20,
+    gap: 16,
+  },
   section: {
-    padding: 16,
+    padding: 20,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '800',
-    color: palette.text,
-    marginBottom: 16,
+    marginBottom: 20,
+    letterSpacing: -0.4,
   },
   emptyState: {
-    backgroundColor: palette.card,
-    borderRadius: 12,
-    padding: 32,
+    borderRadius: 28,
+    padding: 40,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: palette.border,
+    borderWidth: 1.5,
     borderStyle: 'dashed',
   },
   emptyText: {
-    fontSize: 16,
-    color: palette.muted,
-    marginBottom: 16,
+    fontSize: 17,
+    marginBottom: 20,
     textAlign: 'center',
+    fontWeight: '500',
   },
   emptyButton: {
-    backgroundColor: palette.primary,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-  },
-  emptyButtonText: {
-    color: '#0B1220',
-    fontSize: 14,
-    fontWeight: '800',
+    minWidth: 240,
   },
   programGrid: {
+    flexDirection: 'column',
+    gap: 16,
+  },
+  programGridTablet: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+  },
+  programGridDesktop: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 20,
   },
   programCard: {
     marginBottom: 0,
-    backgroundColor: palette.card,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: palette.border,
-    padding: 14,
+    borderRadius: 28,
+    borderWidth: 1.5,
+    padding: 20,
+    gap: 10,
+  },
+  programCardTablet: {
     width: '48%',
-    gap: 8,
+  },
+  programCardDesktop: {
+    width: '31%',
   },
   programTag: {
     alignSelf: 'flex-start',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    backgroundColor: 'rgba(34, 211, 238, 0.12)',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
   },
   programTagText: {
-    color: palette.primary,
     fontWeight: '800',
-    fontSize: 12,
+    fontSize: 13,
+    letterSpacing: 0.5,
   },
   programTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '800',
-    color: palette.text,
+    letterSpacing: -0.3,
   },
   programSubtitle: {
-    fontSize: 13,
-    color: palette.muted,
+    fontSize: 14,
+    fontWeight: '600',
   },
   programDesc: {
-    fontSize: 13,
-    color: palette.muted,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 21,
   },
   programMetaRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+    marginTop: 4,
+  },
+  programMetaBadge: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
   },
   programMeta: {
     fontSize: 12,
-    color: palette.muted,
-    backgroundColor: '#0C1627',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: palette.border,
+    fontWeight: '600',
   },
   programCta: {
-    marginTop: 6,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: 'rgba(34, 211, 238, 0.14)',
+    marginTop: 8,
+    paddingVertical: 12,
+    borderRadius: 16,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(34, 211, 238, 0.4)',
+    borderWidth: 1.5,
   },
   programCtaText: {
-    color: palette.primary,
     fontWeight: '800',
-    fontSize: 13,
+    fontSize: 14,
+    letterSpacing: 0.5,
   },
 });

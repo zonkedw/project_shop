@@ -6,16 +6,26 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
+  useWindowDimensions,
 } from 'react-native';
 import { nutritionAPI } from '../services/api';
 import { useApi } from '../hooks/useApi';
+import { useTheme } from '../hooks/useTheme';
 import LoadingIndicator from '../components/LoadingIndicator';
 import ErrorMessage from '../components/ErrorMessage';
 import StatCard from '../components/StatCard';
 import MealCard from '../components/MealCard';
 import { cache } from '../utils/cache';
+import { LinearGradient } from 'expo-linear-gradient';
+import GradientButton from '../components/GradientButton';
 
 export default function NutritionScreen({ navigation }) {
+  const { theme, isDark } = useTheme();
+  const palette = theme; // для обратной совместимости
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
+  const isDesktop = width >= 1024;
+
   const [diary, setDiary] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const { loading, error, execute, reset } = useApi();
@@ -28,7 +38,6 @@ export default function NutritionScreen({ navigation }) {
     const today = new Date().toISOString().split('T')[0];
     const cacheKey = `diary_${today}`;
 
-    // Проверяем кэш
     if (useCache) {
       const cached = await cache.get(cacheKey);
       if (cached) {
@@ -42,7 +51,6 @@ export default function NutritionScreen({ navigation }) {
         const response = await nutritionAPI.getDiary(today);
         const data = response.data;
         
-        // Сохраняем в кэш
         await cache.set(cacheKey, data);
         setDiary(data);
         
@@ -63,23 +71,43 @@ export default function NutritionScreen({ navigation }) {
     navigation.navigate('AddMeal');
   };
 
+  const caloriesPercent = diary?.targets?.calories 
+    ? Math.round((diary.totals?.calories || 0) / diary.targets.calories * 100)
+    : 0;
+
+  const heroGradient = isDark 
+    ? ['#8B5CF6', '#EC4899', '#0F0F23']
+    : ['#8B5CF6', '#EC4899', '#F8FAFC'];
+
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: palette.bg }]}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.primary} />
       }
     >
-      <View style={styles.header}>
-        <Text style={styles.title}>Дневник питания</Text>
-        <Text style={styles.date}>
+      <LinearGradient
+        colors={heroGradient}
+        style={styles.hero}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <Text style={styles.heroTitle}>🍽️ Дневник питания</Text>
+        <Text style={styles.heroDate}>
           {new Date().toLocaleDateString('ru-RU', { 
             weekday: 'long', 
             day: 'numeric', 
             month: 'long' 
           })}
         </Text>
-      </View>
+        {diary && (
+          <View style={styles.heroProgress}>
+            <Text style={styles.heroProgressLabel}>
+              {diary.totals?.calories || 0} / {diary.targets?.calories || 0} ккал ({caloriesPercent}%)
+            </Text>
+          </View>
+        )}
+      </LinearGradient>
 
       {error && (
         <View style={styles.errorContainer}>
@@ -93,12 +121,12 @@ export default function NutritionScreen({ navigation }) {
 
       {diary && (
         <>
-          <View style={styles.statsContainer}>
+          <View style={[styles.statsContainer, isTablet && styles.statsContainerTablet]}>
             <StatCard
               icon="🔥"
               label="Калории"
-              value={`${diary.totals?.calories || 0} / ${diary.targets?.calories || 0}`}
-              subtitle={`Осталось: ${Math.max(0, (diary.targets?.calories || 0) - (diary.totals?.calories || 0))} ккал`}
+              value={`${diary.totals?.calories || 0}`}
+              subtitle={`Цель: ${diary.targets?.calories || 0} ккал`}
             />
             <StatCard
               icon="🥩"
@@ -108,7 +136,7 @@ export default function NutritionScreen({ navigation }) {
             />
           </View>
 
-          <View style={styles.statsContainer}>
+          <View style={[styles.statsContainer, isTablet && styles.statsContainerTablet]}>
             <StatCard
               icon="🍞"
               label="Углеводы"
@@ -125,9 +153,9 @@ export default function NutritionScreen({ navigation }) {
 
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Приёмы пищи</Text>
+              <Text style={[styles.sectionTitle, { color: palette.text }]}>Приёмы пищи</Text>
               <TouchableOpacity onPress={handleAddMeal}>
-                <Text style={styles.addButton}>+ Добавить</Text>
+                <Text style={[styles.addButton, { color: palette.primary }]}>+ Добавить</Text>
               </TouchableOpacity>
             </View>
 
@@ -142,11 +170,19 @@ export default function NutritionScreen({ navigation }) {
                 />
               ))
             ) : (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyText}>Нет приёмов пищи на сегодня</Text>
-                <TouchableOpacity style={styles.emptyButton} onPress={handleAddMeal}>
-                  <Text style={styles.emptyButtonText}>Добавить первый приём</Text>
-                </TouchableOpacity>
+              <View style={[styles.emptyState, { 
+                backgroundColor: isDark ? 'rgba(31, 32, 71, 0.6)' : palette.card,
+                borderColor: palette.border 
+              }]}>
+                <Text style={[styles.emptyText, { color: palette.muted }]}>
+                  Нет приёмов пищи на сегодня
+                </Text>
+                <GradientButton
+                  title="Добавить первый приём"
+                  onPress={handleAddMeal}
+                  variant="secondary"
+                  style={styles.emptyButton}
+                />
               </View>
             )}
           </View>
@@ -159,76 +195,165 @@ export default function NutritionScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
-  header: {
-    backgroundColor: '#fff',
-    padding: 20,
+  hero: {
+    padding: 28,
     paddingTop: 60,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    paddingBottom: 40,
+    gap: 12,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#111',
-    marginBottom: 4,
+  heroTitle: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: -0.6,
   },
-  date: {
-    fontSize: 14,
-    color: '#666',
+  heroDate: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.9)',
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  heroProgress: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    marginTop: 8,
+  },
+  heroProgressLabel: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   errorContainer: {
-    margin: 16,
+    margin: 20,
   },
   statsContainer: {
     flexDirection: 'row',
-    padding: 12,
+    padding: 16,
     gap: 12,
   },
+  statsContainerTablet: {
+    padding: 20,
+    gap: 16,
+  },
   section: {
-    padding: 16,
+    padding: 20,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111',
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: -0.4,
   },
   addButton: {
-    fontSize: 14,
-    color: '#4F46E5',
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   emptyState: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 32,
+    borderRadius: 28,
+    padding: 40,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderWidth: 1.5,
     borderStyle: 'dashed',
   },
   emptyText: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 16,
+    fontSize: 17,
+    marginBottom: 20,
     textAlign: 'center',
+    fontWeight: '500',
   },
   emptyButton: {
-    backgroundColor: '#4F46E5',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
+    minWidth: 240,
   },
-  emptyButtonText: {
-    color: '#fff',
+  programGrid: {
+    gap: 16,
+  },
+  programGridTablet: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  programGridDesktop: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 20,
+  },
+  programCard: {
+    marginBottom: 0,
+    borderRadius: 28,
+    borderWidth: 1.5,
+    padding: 20,
+    gap: 10,
+  },
+  programCardTablet: {
+    width: '48%',
+  },
+  programCardDesktop: {
+    width: '31%',
+  },
+  programTag: {
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+  },
+  programTagText: {
+    fontWeight: '800',
+    fontSize: 13,
+    letterSpacing: 0.5,
+  },
+  programTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  programSubtitle: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  programDesc: {
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  programMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+  },
+  programMetaBadge: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  programMeta: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  programCta: {
+    marginTop: 8,
+    paddingVertical: 12,
+    borderRadius: 16,
+    alignItems: 'center',
+    borderWidth: 1.5,
+  },
+  programCtaText: {
+    fontWeight: '800',
+    fontSize: 14,
+    letterSpacing: 0.5,
   },
 });

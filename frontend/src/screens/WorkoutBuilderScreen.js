@@ -1,18 +1,48 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, ActivityIndicator, Alert } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity, 
+  FlatList, 
+  TextInput, 
+  ActivityIndicator, 
+  Alert,
+  useWindowDimensions,
+  Animated as RNAnimated,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { workoutsAPI } from '../services/api';
+import { useTheme } from '../hooks/useTheme';
+import GradientButton from '../components/GradientButton';
 
 export default function WorkoutBuilderScreen({ navigation, route }) {
+  const { theme, isDark } = useTheme();
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
+  const isDesktop = width >= 1024;
+
   const [name, setName] = useState('Моя тренировка');
   const [sets, setSets] = useState([]); // { exercise, reps, weight_kg }
   const [saving, setSaving] = useState(false);
+  
+  const fade = useRef(new RNAnimated.Value(0)).current;
 
   const selectedExercise = route?.params?.selectedExercise;
 
   useEffect(() => {
+    RNAnimated.timing(fade, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  useEffect(() => {
     if (selectedExercise) {
       addExercise(selectedExercise);
-      // очищаем параметр, чтобы не дублировать
       navigation.setParams({ selectedExercise: undefined });
     }
   }, [selectedExercise]);
@@ -58,7 +88,9 @@ export default function WorkoutBuilderScreen({ navigation, route }) {
         })),
       };
       await workoutsAPI.createSession(payload);
-      navigation.navigate('Workouts');
+      Alert.alert('Успех', 'Тренировка сохранена!', [
+        { text: 'OK', onPress: () => navigation.navigate('Workouts') }
+      ]);
     } catch (e) {
       Alert.alert('Ошибка', e.response?.data?.error || 'Не удалось сохранить тренировку');
     } finally {
@@ -67,164 +99,325 @@ export default function WorkoutBuilderScreen({ navigation, route }) {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Конструктор тренировки</Text>
-        <Text style={styles.subtitle}>Соберите свой план из упражнений</Text>
-      </View>
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: theme.bg }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <RNAnimated.View style={{ opacity: fade }}>
+        <LinearGradient
+          colors={theme.gradients.success}
+          style={styles.hero}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <Text style={styles.heroTitle}>🏗️ Конструктор тренировки</Text>
+          <Text style={styles.heroSubtitle}>
+            Создайте свой уникальный план упражнений
+          </Text>
+        </LinearGradient>
 
-      <View style={styles.nameRow}>
-        <TextInput
-          style={styles.nameInput}
-          value={name}
-          onChangeText={setName}
-          placeholder="Название тренировки"
-          placeholderTextColor="#94A3B8"
-        />
-      </View>
+        <View style={[styles.nameContainer, { backgroundColor: theme.bg }]}>
+          <Text style={[styles.label, { color: theme.textSecondary }]}>
+            Название тренировки
+          </Text>
+          <TextInput
+            style={[styles.nameInput, { 
+              backgroundColor: isDark ? theme.glass.weak : theme.surface,
+              borderColor: theme.borderLight,
+              color: theme.text 
+            }]}
+            value={name}
+            onChangeText={setName}
+            placeholder="Например: Тренировка груди"
+            placeholderTextColor={theme.textMuted}
+          />
+        </View>
 
-      <TouchableOpacity
-        style={styles.addExerciseBtn}
-        onPress={() => navigation.navigate('ExerciseLibrary')}
-      >
-        <Text style={styles.addExerciseText}>+ Добавить упражнение</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.addExerciseBtn, { 
+            backgroundColor: isDark ? theme.glass.weak : theme.bgSecondary,
+            borderColor: theme.borderLight 
+          }]}
+          onPress={() => navigation.navigate('ExerciseLibrary')}
+        >
+          <Text style={[styles.addExerciseText, { color: theme.primary }]}>
+            + Добавить упражнение из библиотеки
+          </Text>
+        </TouchableOpacity>
+      </RNAnimated.View>
 
       <FlatList
         data={sets}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+        contentContainerStyle={[
+          styles.listContent,
+          isDesktop && styles.listContentDesktop
+        ]}
         ListEmptyComponent={
-          <View style={styles.emptyBox}>
-            <Text style={styles.emptyText}>Пока нет упражнений. Добавьте из библиотеки.</Text>
+          <View style={[styles.emptyBox, { 
+            backgroundColor: isDark ? theme.surface : theme.surface,
+            borderColor: theme.borderLight 
+          }]}>
+            <Text style={[styles.emptyText, { color: theme.textMuted }]}>
+              Пока нет упражнений. Добавьте из библиотеки выше.
+            </Text>
           </View>
         }
-        renderItem={({ item }) => (
-          <View style={styles.setCard}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.setName}>{item.exercise.name}</Text>
-              <Text style={styles.setMeta}>{item.exercise.muscle_group || 'Мышечная группа не указана'}</Text>
+        renderItem={({ item, index }) => (
+          <RNAnimated.View style={[
+            styles.setCard,
+            { 
+              backgroundColor: isDark ? theme.surface : theme.surface,
+              borderColor: theme.borderLight 
+            }
+          ]}>
+            <View style={styles.setHeader}>
+              <View style={[styles.setNumber, { backgroundColor: theme.primary }]}>
+                <Text style={styles.setNumberText}>{index + 1}</Text>
+              </View>
+              <View style={styles.setInfo}>
+                <Text style={[styles.setName, { color: theme.text }]}>
+                  {item.exercise.name}
+                </Text>
+                <Text style={[styles.setMeta, { color: theme.textMuted }]}>
+                  {item.exercise.muscle_group || 'Мышечная группа не указана'}
+                </Text>
+              </View>
+              <TouchableOpacity 
+                style={[styles.removeBtn, { 
+                  backgroundColor: `${theme.error}15`,
+                  borderColor: `${theme.error}40`
+                }]} 
+                onPress={() => removeSet(item.id)}
+              >
+                <Text style={[styles.removeText, { color: theme.error }]}>×</Text>
+              </TouchableOpacity>
             </View>
-            <View style={styles.inputsCol}>
+
+            <View style={styles.inputsRow}>
               <View style={styles.inputBlock}>
-                <Text style={styles.inputLabel}>Повт</Text>
+                <Text style={[styles.inputLabel, { color: theme.textMuted }]}>
+                  Повторения
+                </Text>
                 <TextInput
-                  style={styles.smallInput}
+                  style={[styles.smallInput, { 
+                    backgroundColor: isDark ? theme.glass.weak : theme.bgSecondary,
+                    borderColor: theme.border,
+                    color: theme.text 
+                  }]}
                   keyboardType="numeric"
                   value={item.reps}
                   onChangeText={(t) => updateSet(item.id, 'reps', t)}
+                  placeholder="10"
+                  placeholderTextColor={theme.textMuted}
                 />
               </View>
               <View style={styles.inputBlock}>
-                <Text style={styles.inputLabel}>Вес</Text>
+                <Text style={[styles.inputLabel, { color: theme.textMuted }]}>
+                  Вес (кг)
+                </Text>
                 <TextInput
-                  style={styles.smallInput}
+                  style={[styles.smallInput, { 
+                    backgroundColor: isDark ? theme.glass.weak : theme.bgSecondary,
+                    borderColor: theme.border,
+                    color: theme.text 
+                  }]}
                   keyboardType="numeric"
                   value={item.weight_kg}
                   onChangeText={(t) => updateSet(item.id, 'weight_kg', t)}
+                  placeholder="20"
+                  placeholderTextColor={theme.textMuted}
                 />
               </View>
             </View>
-            <TouchableOpacity style={styles.removeBtn} onPress={() => removeSet(item.id)}>
-              <Text style={styles.removeText}>×</Text>
-            </TouchableOpacity>
-          </View>
+          </RNAnimated.View>
         )}
       />
 
-      <TouchableOpacity
-        style={[styles.saveBtn, saving && { opacity: 0.6 }]}
-        onPress={saveSession}
-        disabled={saving}
-      >
-        {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Сохранить тренировку</Text>}
-      </TouchableOpacity>
-    </View>
+      <View style={[styles.footer, { 
+        backgroundColor: isDark ? theme.glass.medium : theme.surface,
+        borderTopColor: theme.borderLight 
+      }]}>
+        <GradientButton
+          title={saving ? 'Сохранение...' : 'Сохранить тренировку'}
+          onPress={saveSession}
+          disabled={saving || sets.length === 0}
+          variant="success"
+          style={styles.saveButton}
+        />
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0B1220' },
-  header: { paddingTop: 20, paddingHorizontal: 16, paddingBottom: 8 },
-  title: { color: '#E5E7EB', fontSize: 22, fontWeight: '700' },
-  subtitle: { color: '#94A3B8', marginTop: 4, fontSize: 13 },
-  nameRow: { paddingHorizontal: 16, marginTop: 12 },
+  container: {
+    flex: 1,
+  },
+  hero: {
+    paddingTop: 60,
+    paddingBottom: 32,
+    paddingHorizontal: 28,
+    alignItems: 'center',
+  },
+  heroTitle: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    marginBottom: 8,
+    letterSpacing: -0.6,
+    textAlign: 'center',
+  },
+  heroSubtitle: {
+    fontSize: 15,
+    color: 'rgba(255, 255, 255, 0.95)',
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  nameContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 10,
+    letterSpacing: 0.3,
+  },
   nameInput: {
-    backgroundColor: '#0F172A',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    color: '#E5E7EB',
-    borderWidth: 1,
-    borderColor: 'rgba(148,163,184,0.25)',
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    fontSize: 16,
+    borderWidth: 1.5,
+    fontWeight: '600',
   },
   addExerciseBtn: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    backgroundColor: '#111827',
-    borderRadius: 12,
-    paddingVertical: 10,
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 20,
+    paddingVertical: 14,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(148,163,184,0.35)',
+    borderWidth: 1.5,
   },
-  addExerciseText: { color: '#E5E7EB', fontWeight: '600' },
+  addExerciseText: {
+    fontWeight: '800',
+    fontSize: 15,
+    letterSpacing: 0.3,
+  },
+  listContent: {
+    padding: 20,
+    paddingBottom: 120,
+  },
+  listContentDesktop: {
+    maxWidth: 900,
+    alignSelf: 'center',
+    width: '100%',
+  },
   emptyBox: {
-    marginTop: 16,
-    padding: 16,
-    borderRadius: 14,
-    backgroundColor: '#0F172A',
-    borderWidth: 1,
-    borderColor: 'rgba(148,163,184,0.25)',
+    marginTop: 40,
+    borderRadius: 24,
+    padding: 40,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
   },
-  emptyText: { color: '#94A3B8', textAlign: 'center' },
+  emptyText: {
+    fontSize: 16,
+    textAlign: 'center',
+    fontWeight: '600',
+    lineHeight: 24,
+  },
   setCard: {
-    marginTop: 10,
-    backgroundColor: '#0F172A',
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(148,163,184,0.25)',
+    marginBottom: 16,
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1.5,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  setHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    marginBottom: 16,
   },
-  setName: { color: '#E5E7EB', fontWeight: '700', fontSize: 15 },
-  setMeta: { color: '#94A3B8', marginTop: 2, fontSize: 12 },
-  inputsCol: { flexDirection: 'row', gap: 8 },
-  inputBlock: { alignItems: 'center' },
-  inputLabel: { color: '#9CA3AF', fontSize: 11, marginBottom: 2 },
-  smallInput: {
-    width: 56,
-    backgroundColor: '#020617',
-    borderRadius: 10,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    color: '#E5E7EB',
-    borderWidth: 1,
-    borderColor: 'rgba(148,163,184,0.35)',
-    textAlign: 'center',
+  setNumber: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  setNumberText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  setInfo: {
+    flex: 1,
+  },
+  setName: {
+    fontSize: 17,
+    fontWeight: '800',
+    marginBottom: 4,
+    letterSpacing: -0.2,
+  },
+  setMeta: {
     fontSize: 13,
+    fontWeight: '600',
   },
   removeBtn: {
-    marginLeft: 8,
-    width: 28,
-    height: 28,
-    borderRadius: 999,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#111827',
-    borderWidth: 1,
-    borderColor: 'rgba(239,68,68,0.35)',
+    borderWidth: 1.5,
   },
-  removeText: { color: '#FCA5A5', fontSize: 18, fontWeight: '700' },
-  saveBtn: {
-    marginHorizontal: 16,
-    marginVertical: 16,
-    backgroundColor: '#4F46E5',
+  removeText: {
+    fontSize: 24,
+    fontWeight: '800',
+    lineHeight: 24,
+  },
+  inputsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  inputBlock: {
+    flex: 1,
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 8,
+    letterSpacing: 0.3,
+  },
+  smallInput: {
     borderRadius: 14,
-    alignItems: 'center',
     paddingVertical: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    borderWidth: 1.5,
+    textAlign: 'center',
+    fontWeight: '800',
   },
-  saveText: { color: '#fff', fontWeight: '700' },
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 20,
+    borderTopWidth: 1.5,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  saveButton: {
+    width: '100%',
+  },
 });

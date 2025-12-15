@@ -1,23 +1,40 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, useColorScheme } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors } from '../theme/colors';
 
-const palette = {
-  bg: '#0B1220',
-  panel: '#0F172A',
-  accent: '#22D3EE',
-  accentSoft: '#38BDF8',
-  border: '#1F2937',
-  text: '#E2E8F0',
-  muted: '#94A3B8',
-};
+const getDarkPalette = () => ({
+  bg: '#0F0F23',
+  panel: '#1A1B3E',
+  accent: '#6366F1',
+  accentSoft: '#818CF8',
+  border: '#2A2B5A',
+  text: '#F8FAFC',
+  muted: '#CBD5E1',
+});
+
+const getLightPalette = () => ({
+  bg: '#F8FAFC',
+  panel: '#FFFFFF',
+  accent: '#6366F1',
+  accentSoft: '#818CF8',
+  border: '#E2E8F0',
+  text: '#0F172A',
+  muted: '#64748B',
+});
 
 export default function Header({ navigation, user }) {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  const palette = isDark ? getDarkPalette() : getLightPalette();
+  
+  const headerGradient = isDark 
+    ? [palette.bg, palette.panel]
+    : ['#F8FAFC', '#FFFFFF'];
+
   return (
     <View style={styles.header}>
       <LinearGradient
-        colors={[palette.bg, palette.panel]}
+        colors={headerGradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.headerGradient}
@@ -27,10 +44,13 @@ export default function Header({ navigation, user }) {
             style={styles.logoSection}
             onPress={() => navigation.navigate('Home')}
           >
-            <Text style={styles.logoMark}>FP</Text>
+            <Text style={[styles.logoMark, { 
+              backgroundColor: palette.accent,
+              shadowColor: palette.accent 
+            }]}>FP</Text>
             <View>
-              <Text style={styles.logoText}>FitPilot</Text>
-              <Text style={styles.logoSub}>Performance Lab</Text>
+              <Text style={[styles.logoText, { color: palette.text }]}>FitPilot</Text>
+              <Text style={[styles.logoSub, { color: palette.muted }]}>Performance Lab</Text>
             </View>
           </TouchableOpacity>
           
@@ -39,59 +59,72 @@ export default function Header({ navigation, user }) {
               style={styles.navItem}
               onPress={() => navigation.navigate('Landing')}
             >
-              <Text style={styles.navText}>Главная</Text>
+              <Text style={[styles.navText, { color: palette.text }]}>Главная</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.navItem}
               onPress={() => navigation.navigate('Programs')}
             >
-              <Text style={styles.navText}>Программы</Text>
+              <Text style={[styles.navText, { color: palette.text }]}>Программы</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.navItem}
               onPress={() => navigation.navigate('Nutrition')}
             >
-              <Text style={styles.navText}>Питание</Text>
+              <Text style={[styles.navText, { color: palette.text }]}>Питание</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.navItem}
               onPress={() => navigation.navigate('Workouts')}
             >
-              <Text style={styles.navText}>Тренировки</Text>
+              <Text style={[styles.navText, { color: palette.text }]}>Тренировки</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.navItem}
               onPress={() => navigation.navigate('Chat')}
             >
-              <Text style={styles.navText}>AI</Text>
+              <Text style={[styles.navText, { color: palette.text }]}>AI</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.navItem}
               onPress={() => navigation.navigate('Features')}
             >
-              <Text style={styles.navText}>Функции</Text>
+              <Text style={[styles.navText, { color: palette.text }]}>Функции</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.navItem}
               onPress={() => navigation.navigate('About')}
             >
-              <Text style={styles.navText}>О нас</Text>
+              <Text style={[styles.navText, { color: palette.text }]}>О нас</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.navItem}
               onPress={() => navigation.navigate('Recipes')}
             >
-              <Text style={styles.navText}>Рецепты</Text>
+              <Text style={[styles.navText, { color: palette.text }]}>Рецепты</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.navItem}
+              onPress={() => navigation.navigate('Profile')}
+            >
+              <Text style={[styles.navText, { color: palette.text }]}>Профиль</Text>
             </TouchableOpacity>
           </View>
 
-          <View style={styles.userSection}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
+          <TouchableOpacity
+            style={styles.userSection}
+            onPress={() => navigation.navigate('Profile')}
+          >
+            <View style={[styles.avatar, { 
+              backgroundColor: `${palette.accent}33`,
+              borderColor: palette.accent,
+              shadowColor: palette.accent 
+            }]}>
+              <Text style={[styles.avatarText, { color: palette.accent }]}>
                 {user?.username?.[0]?.toUpperCase() || 'U'}
               </Text>
             </View>
-          </View>
+          </TouchableOpacity>
         </View>
       </LinearGradient>
     </View>
@@ -113,9 +146,9 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   headerGradient: {
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderColor: palette.border,
+    paddingBottom: 16,
+    borderBottomWidth: 1.5,
+    borderColor: 'rgba(99, 102, 241, 0.25)',
   },
   headerContent: {
     flexDirection: 'row',
@@ -130,29 +163,30 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   logoMark: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    backgroundColor: palette.accent,
-    color: '#0B1220',
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    color: '#0A0E1A',
     fontWeight: '900',
-    fontSize: 16,
-    letterSpacing: 1,
+    fontSize: 17,
+    letterSpacing: 1.2,
     textAlign: 'center',
     textAlignVertical: 'center',
     includeFontPadding: false,
     paddingTop: 12,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 4,
   },
   logoText: {
     fontSize: 18,
     fontWeight: '800',
-    color: palette.text,
     letterSpacing: 0.5,
   },
   logoSub: {
     fontSize: 11,
     fontWeight: '600',
-    color: palette.muted,
     letterSpacing: 0.4,
     marginTop: 2,
   },
@@ -169,7 +203,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   navText: {
-    color: palette.text,
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: 0.3,
@@ -178,19 +211,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: 'rgba(34, 211, 238, 0.18)',
+    width: 44,
+    height: 44,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: palette.border,
+    borderWidth: 2.5,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   avatarText: {
     fontSize: 14,
     fontWeight: '800',
-    color: palette.text,
   },
 });
-
